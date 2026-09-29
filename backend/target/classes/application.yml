@@ -1,0 +1,44 @@
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: agrishield-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/agrishield_db}
+    username: ${SPRING_DATASOURCE_USERNAME:agrishield_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:agrishield_secure_pass_2026}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      pool-name: AgriShieldHikariCP
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+
+agrishield:
+  jwt:
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    expiration-ms: ${JWT_EXPIRATION_MS:900000} # 15 minutes (900,000 ms) per specification
+  fabric:
+    enabled: ${FABRIC_ENABLED:false} # Toggle for local development without Fabric network
+    peer-endpoint: ${FABRIC_PEER_ENDPOINT:localhost:7051}
+    channel: ${FABRIC_CHANNEL:farmchannel}
+    chaincode: ${FABRIC_CHAINCODE:mrl-amu-contract}
+    msp-id: ${FABRIC_MSP_ID:Org1MSP}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

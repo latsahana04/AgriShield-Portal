@@ -1,0 +1,3615 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AgriShield Portal | Digital Farm Livestock Safety & Cryptographic MRL Compliance</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              500: '#22c55e',
+              700: '#15803d',
+              800: '#166534',
+              900: '#0d3c26',
+              950: '#082a1a',
+            },
+            forest: {
+              DEFAULT: '#0D3C26',
+              light: '#145334',
+              dark: '#082517'
+            },
+            amber: {
+              custom: '#D97706',
+              light: '#FEF3E2'
+            },
+            safe: {
+              DEFAULT: '#10B981',
+              light: '#E7F9F1',
+              dark: '#067A55'
+            },
+            danger: {
+              DEFAULT: '#EF4444',
+              light: '#FEECEC',
+              dark: '#C62828'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+  <!-- Canvas Confetti for permit approval -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <style>
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    .glow-safe { box-shadow: 0 0 15px rgba(16, 185, 129, 0.35); }
+    .glow-danger { box-shadow: 0 0 15px rgba(239, 68, 68, 0.35); }
+    .glow-amber { box-shadow: 0 0 15px rgba(217, 119, 6, 0.35); }
+    
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.65; }
+    }
+    .animate-pulse-subtle { animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    
+    @keyframes scanline {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(1000%); }
+    }
+    .scanner-beam {
+      animation: scanline 2.2s linear infinite;
+    }
+
+    /* Print styles for certificates */
+    @media print {
+      body * { visibility: hidden; }
+      #printableCertificate, #printableCertificate * { visibility: visible; }
+      #printableCertificate { position: absolute; left: 0; top: 0; width: 100%; border: none !important; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased text-slate-800 bg-slate-50 selection:bg-brand-100 selection:text-brand-900">
+
+  <!-- ================= TOP DEMO SIMULATOR CONTROL BAR ================= -->
+  <header class="no-print bg-slate-900 text-slate-200 text-xs px-4 py-2 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 z-50">
+    <div class="flex items-center gap-3">
+      <span class="inline-flex items-center gap-1.5 font-bold tracking-wider text-emerald-400 bg-slate-800/80 px-2.5 py-1 rounded border border-emerald-500/30">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        FABRIC 2.5 gRPC: SYNCHRONIZED
+      </span>
+      <span class="hidden sm:inline-block text-slate-400">|</span>
+      <span class="text-slate-300 font-mono hidden md:inline-flex items-center gap-1">
+        <span>Channel:</span> <strong class="text-white">farmchannel</strong>
+      </span>
+      <span class="hidden sm:inline-block text-slate-400">|</span>
+      <span class="text-slate-300 hidden lg:inline-flex items-center gap-1">
+        <span>Raft Consensus:</span> <span class="text-emerald-400 font-semibold">Leader Node #1 Online</span>
+      </span>
+    </div>
+
+    <!-- Quick Simulation Tools -->
+    <div class="flex items-center gap-2 font-mono flex-wrap">
+      <div class="bg-slate-800 rounded px-2 py-1 text-slate-300 text-[11px] flex items-center gap-1 border border-slate-700">
+        <span class="text-slate-400">Virtual Time:</span>
+        <span id="virtualTimeDisplay" class="text-amber-400 font-semibold">2026-09-29 18:48:00 UTC</span>
+      </div>
+      <button onclick="window.fastForwardHours(12)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition" title="Simulate passing of 12 hours to observe MRL status decay">
+        ⏩ +12h Decay
+      </button>
+      <button onclick="window.fastForwardHours(48)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition" title="Simulate passing of 48 hours">
+        ⏩ +48h Safe
+      </button>
+      <button onclick="window.resetSimulationTime()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition" title="Reset virtual clock to real time">
+        ↺ Reset Time
+      </button>
+      <button onclick="window.toggleAudioFeedback()" id="audioToggleBtn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded border border-slate-700 transition" title="Toggle RFID Scanner & Gatekeeper Audio Feedback">
+        🔊 Sound: ON
+      </button>
+      <button onclick="window.openArchitectureModal()" class="px-2.5 py-1 bg-brand-700 hover:bg-brand-600 text-white font-sans font-medium rounded transition flex items-center gap-1 shadow-sm">
+        <span>🏛️ Architecture Spec</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= MAIN APPLICATION CONTAINER ================= -->
+  <div id="appRoot" class="flex-1 flex flex-col h-[calc(100vh-37px)] overflow-hidden">
+    <!-- Populated by JavaScript router -->
+  </div>
+
+  <!-- ================= GLOBAL TOAST CONTAINER ================= -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-md pointer-events-none"></div>
+
+  <!-- ================= ARCHITECTURE MODAL ================= -->
+  <div id="archModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+      <div class="p-5 bg-forest text-white flex items-center justify-between border-b border-brand-800">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-xl">
+            🛡️
+          </div>
+          <div>
+            <h3 class="text-lg font-bold">AgriShield Technical Architecture & System Rules</h3>
+            <p class="text-xs text-brand-200">Hybrid On-Chain/Off-Chain Microservices with Deterministic Gatekeeping</p>
+          </div>
+        </div>
+        <button onclick="window.closeArchitectureModal()" class="text-white/70 hover:text-white text-2xl px-2 py-1">&times;</button>
+      </div>
+      <div class="p-6 overflow-y-auto space-y-6 text-sm">
+        <div class="bg-slate-900 text-emerald-400 p-4 rounded-xl font-mono text-xs overflow-x-auto border border-slate-800 shadow-inner">
+<pre class="leading-relaxed">========================================================================================================================
+                                      AGRISHIELD PORTAL FULL ARCHITECTURE
+========================================================================================================================
+
+  [ PRESENTATION TIER: REACT 18 + TAILWIND CSS SPA ]
+  ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │  Farmhand Portal UI   │   Veterinarian UI    │   Manager Dashboard UI   │   Government Auditor Explorer UI   │
+  └───────────────────────┴──────────┬───────────┴──────────────────────────┴────────────────┬───────────────────────┘
+                                     │                                                       │
+                                     │ HTTPS / TLS 1.3 (REST API + WebSocket + JWT Header)   │
+                                     ▼                                                       │
+  [ APPLICATION TIER: JAVA 17 / SPRING BOOT 3.1.5 ]                                           │
+  ┌───────────────────────────────────────────────────────────────────────────────────────┐  │
+  │  Spring Security Gateway & Token Resolver (Custom SecurityFilterChain)                │  │
+  ├───────────────────────────────────────────────────────────────────────────────────────┤  │
+  │  BUSINESS LOGIC & ENGINE LAYER                                                        │  │
+  │   ├── Auth & RBAC Controller (JWT Validation & Claims)                                │  │
+  │   ├── Data Ingestion, Deduplication & Duty Cleaner Engine (/data-cleaner)             │  │
+  │   ├── MRL Calculation & Automatic Status Decay Engine                                 │  │
+  │   ├── Deterministic Shipment Permit Gatekeeper Rule Engine                            │  │
+  │   └── AMU (Antimicrobial Usage) Index & Threshold Analytics Engine                    │  │
+  ├───────────────────────────────────────────────────────────────────────────────────────┤  │
+  │  DATA ACCESS LAYER                                                                    │  │
+  │   ├── Spring Data JPA Hibernate ORM (PostgreSQL Connection Pool - HikariCP)           │  │
+  │   └── Hyperledger Fabric Gateway Java SDK (gRPC Connection Pool - Port 7051)          │  │
+  └──────────────────┬─────────────────────────────────────────────────┬──────────────────┘  │
+                     │ JDBC Connection                                 │ gRPC Protocol       │
+                     ▼                                                 ▼                     │
+  [ PERSISTENCE & DISTRIBUTED LEDGER TIER ]                                                  │
+  ┌─────────────────────────────────────────────────┐   ┌─────────────────────────────────┐  │
+  │ PostgreSQL 15 Relational Database               │   │ Hyperledger Fabric 2.5 Network  │◄─┘
+  │  ├── users (Auth, Roles, Keys)                  │   │  ├── Peer Org1 (Farm Node)      │
+  │  ├── vet_shifts (Schedules & Shifts)            │   │  ├── Peer Org2 (Vet Association)│
+  │  ├── animals (Profiles, Tags, Status)           │   │  ├── Raft Orderer Nodes         │
+  │  ├── medications (Drug MRLs & Withdrawal Hours) │   │  ├── CouchDB World State        │
+  │  ├── treatments (Prescriptions & Hashes)        │   │  └── Java Chaincode Contracts   │
+  │  └── audit_logs (System Action Trails)          │   └─────────────────────────────────┘
+  └─────────────────────────────────────────────────┘</pre>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
+            <h4 class="font-bold text-slate-900 mb-2 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">1</span>
+              Pass 1 & 2 Ingestion Pipeline
+            </h4>
+            <p class="text-xs text-slate-600 mb-2">
+              <strong>Pass 1:</strong> SHA-256 Composite Key = <code class="bg-slate-200 px-1 py-0.5 rounded text-slate-800">SHA256(Animal_ID + Drug_ID + Timestamp)</code>. Duplicate rejected instantly.
+            </p>
+            <p class="text-xs text-slate-600">
+              <strong>Pass 2:</strong> Vet Duty Shift verification against schedule: <code class="bg-slate-200 px-1 py-0.5 rounded text-slate-800">Shift_Start &le; Treatment_TS &le; Shift_End</code>.
+            </p>
+          </div>
+
+          <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
+            <h4 class="font-bold text-slate-900 mb-2 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">2</span>
+              Deterministic Gatekeeper Rule
+            </h4>
+            <p class="text-xs text-slate-600 mb-2">
+              Batch Permit Status is mathematically deterministic:
+            </p>
+            <div class="bg-white p-2 rounded border border-slate-200 text-xs font-mono">
+              Status = &exist; a &isin; {A_1..A_N} (LOCKED) ? DENIED (400) : APPROVED (200)
+            </div>
+            <p class="text-xs text-slate-500 mt-2">Zero tolerance: 1 locked animal blocks the entire batch.</p>
+          </div>
+
+          <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
+            <h4 class="font-bold text-slate-900 mb-2 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">3</span>
+              MRL Decay Engine
+            </h4>
+            <p class="text-xs text-slate-600">
+              <code class="bg-slate-200 px-1 py-0.5 rounded text-slate-800">Safe Release Time = T_admin + (W_h &times; 3600s)</code>.<br>
+              Automatic status decay flips dynamically from <strong>LOCKED</strong> to <strong>SAFE</strong> once current time exceeds release time.
+            </p>
+          </div>
+
+          <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
+            <h4 class="font-bold text-slate-900 mb-2 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold">4</span>
+              AMU Threshold Engine
+            </h4>
+            <p class="text-xs text-slate-600">
+              <code class="bg-slate-200 px-1 py-0.5 rounded text-slate-800">AMU Index = &sum;(mg) / &sum;(kg)</code>.<br>
+              &bull; &le; 2.5 mg/kg: Normal<br>
+              &bull; 2.5 to 3.5 mg/kg: Warning Banner<br>
+              &bull; &gt; 3.5 mg/kg: Regulatory Breach alert logged on-chain.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <button onclick="window.closeArchitectureModal()" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition">
+          Close Blueprint
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PRINTABLE CERTIFICATE MODAL ================= -->
+  <div id="certModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl border-4 border-emerald-600 relative overflow-hidden" id="printableCertificate">
+      <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-12 -mt-12 pointer-events-none"></div>
+      
+      <div class="flex items-start justify-between border-b-2 border-slate-800 pb-4 mb-6">
+        <div>
+          <div class="flex items-center gap-2 text-forest font-black text-xl tracking-tight">
+            <span>🛡️ AGRISHIELD LIVESTOCK CLEARANCE</span>
+          </div>
+          <p class="text-xs text-slate-500 uppercase tracking-widest mt-1">Official Food Chain Safety & MRL Compliance Transport Certificate</p>
+        </div>
+        <div class="text-right">
+          <span class="bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs px-2.5 py-1 rounded font-bold font-mono">
+            CERTIFIED COMPLIANT
+          </span>
+          <div id="certDocId" class="text-[10px] font-mono text-slate-500 mt-1">CERT-2026-X88902</div>
+        </div>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <div class="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div>
+            <span class="text-slate-500 block">Issuing Authority:</span>
+            <strong class="text-slate-800 text-sm">AgriShield Farm Regulatory Node #1</strong>
+          </div>
+          <div>
+            <span class="text-slate-500 block">Verification Protocol:</span>
+            <strong class="text-slate-800 text-sm">Hyperledger Fabric 2.5 (Channel: farmchannel)</strong>
+          </div>
+          <div>
+            <span class="text-slate-500 block">Date of Issue (UTC):</span>
+            <strong id="certTimestamp" class="text-slate-800 font-mono">2026-09-29 18:48:00</strong>
+          </div>
+          <div>
+            <span class="text-slate-500 block">Authorized Inspector / Role:</span>
+            <strong id="certSigner" class="text-slate-800">John Reynolds (Farm Manager)</strong>
+          </div>
+        </div>
+
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+          <div class="bg-slate-100 px-3 py-2 font-bold text-slate-700 flex justify-between">
+            <span>Approved Livestock Batch</span>
+            <span id="certBatchCount">5 Animals</span>
+          </div>
+          <div id="certBatchList" class="p-3 text-xs font-mono space-y-1 max-h-32 overflow-y-auto">
+            <!-- Injected list -->
+          </div>
+        </div>
+
+        <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-[11px] leading-relaxed">
+          <strong>Deterministic Guarantee:</strong> Every animal listed above was cryptographically evaluated against active Maximum Residue Limits (MRL). Zero individuals are under mandatory drug withdrawal hold periods. This livestock lot is cleared for commercial transport and food chain entry.
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 flex items-center justify-between">
+          <div>
+            <div class="font-mono text-[9px] text-slate-400 break-all max-w-xs">
+              Fabric TX Hash:<br>
+              <span id="certTxHash" class="text-slate-600 font-bold">0x8a92f00b9912c0199d7bca883401fa92</span>
+            </div>
+          </div>
+          <div class="text-center">
+            <div class="w-16 h-16 bg-slate-900 text-white rounded p-1 mx-auto flex items-center justify-center font-mono text-[8px] text-center border">
+              [QR VERIFIED<br>LEDGER<br>PROOF]
+            </div>
+            <span class="text-[9px] text-slate-400 block mt-1">Scan for Proof</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end gap-3 no-print">
+        <button onclick="window.print()" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-700 transition">
+          🖨️ Print Certificate
+        </button>
+        <button onclick="window.closeCertModal()" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-100 transition">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT APPLICATION CODE ================= -->
+  <script>
+    /**
+     * AGRISHIELD PORTAL COMPLETE CLIENT-SIDE LOGIC ENGINE
+     * Implements full RBAC, Deterministic Gatekeeper, 2-Pass Cleaner,
+     * MRL Automatic Decay, and Fabric Blockchain Simulation.
+     */
+
+    // --- Audio Feedback (Web Audio API) ---
+    class AudioFeedbackEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+      }
+      beep(freq = 880, type = 'sine', duration = 0.12) {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (e) { console.warn('Audio error', e); }
+      }
+      scanSuccess() {
+        this.beep(1200, 'sine', 0.08);
+        setTimeout(() => this.beep(1600, 'sine', 0.1), 90);
+      }
+      scanLocked() {
+        this.beep(280, 'sawtooth', 0.25);
+        setTimeout(() => this.beep(220, 'sawtooth', 0.35), 260);
+      }
+      permitApproved() {
+        this.beep(523.25, 'triangle', 0.15);
+        setTimeout(() => this.beep(659.25, 'triangle', 0.15), 140);
+        setTimeout(() => this.beep(783.99, 'triangle', 0.25), 280);
+      }
+      permitDenied() {
+        this.beep(300, 'square', 0.2);
+        setTimeout(() => this.beep(250, 'square', 0.3), 180);
+      }
+    }
+    const audio = new AudioFeedbackEngine();
+    window.toggleAudioFeedback = function() {
+      audio.enabled = !audio.enabled;
+      const btn = document.getElementById('audioToggleBtn');
+      btn.textContent = audio.enabled ? '🔊 Sound: ON' : '🔇 Sound: OFF';
+      btn.className = audio.enabled 
+        ? 'px-2 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded border border-slate-700 transition'
+        : 'px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded border border-slate-700 transition';
+    };
+
+    // --- Cryptographic Web Crypto Helper ---
+    async function sha256(message) {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // --- Application State Store ---
+    const DB = {
+      // Current User Session (JWT Simulation)
+      session: {
+        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        issuedAt: Date.now(),
+        expiresInSeconds: 900, // 15 minutes per spec
+        user: {
+          id: 'USR-8821',
+          name: 'Dr. Sarah Lin, DVM',
+          role: 'VETERINARIAN', // Options: 'FARMHAND', 'VETERINARIAN', 'MANAGER', 'AUDITOR'
+          licenseId: 'VET-USA-4402',
+          certFingerprint: 'SHA256:7B:3A:90:E4:11:5F:82:1C:2B:64:89:12:F1:C9:4A:88',
+          org: 'Org2 (Vet Association Node)'
+        }
+      },
+
+      // Virtual Clock offset in milliseconds (for fast forward)
+      timeOffsetMs: 0,
+
+      // master medications with MRLs and Withdrawal periods in hours
+      medications: [
+        { id: 'DRUG-01', name: 'Penicillin G Procaine', withdrawalHours: 72, mrlLimit: '4 µg/kg (milk) / 50 µg/kg (muscle)', standardDoseMgKg: 10, category: 'Beta-lactams' },
+        { id: 'DRUG-02', name: 'Oxytetracycline 200', withdrawalHours: 120, mrlLimit: '100 µg/kg (muscle)', standardDoseMgKg: 20, category: 'Tetracyclines' },
+        { id: 'DRUG-03', name: 'Ceftiofur Sodium', withdrawalHours: 48, mrlLimit: '1000 µg/kg (muscle)', standardDoseMgKg: 2.2, category: 'Cephalosporins' },
+        { id: 'DRUG-04', name: 'Tilmicosin (Micotil)', withdrawalHours: 672, mrlLimit: '50 µg/kg (muscle)', standardDoseMgKg: 10, category: 'Macrolides' },
+        { id: 'DRUG-05', name: 'Enrofloxacin', withdrawalHours: 192, mrlLimit: '100 µg/kg (muscle)', standardDoseMgKg: 7.5, category: 'Fluoroquinolones' }
+      ],
+
+      // Veterinarian Duty Shifts (Table: vet_shifts)
+      vetShifts: [
+        { shiftId: 'SH-101', vetId: 'VET-USA-4402', vetName: 'Dr. Sarah Lin', date: '2026-09-29', start: '08:00', end: '18:00', barnAssigned: 'Barn 1, 2, 3' },
+        { shiftId: 'SH-102', vetId: 'VET-USA-1187', vetName: 'Dr. Marcus Vance', date: '2026-09-29', start: '18:00', end: '23:59', barnAssigned: 'Barn 4' },
+        { shiftId: 'SH-103', vetId: 'VET-USA-4402', vetName: 'Dr. Sarah Lin', date: '2026-09-30', start: '08:00', end: '17:00', barnAssigned: 'All Sectors' },
+        { shiftId: 'SH-104', vetId: 'VET-USA-3390', vetName: 'Dr. Elena Rostova', date: '2026-09-29', start: '00:00', end: '08:00', barnAssigned: 'Quarantine Ward' }
+      ],
+
+      // Livestock Herd (Table: animals)
+      animals: [
+        { tag: 'COW-804', species: 'Bovine', breed: 'Holstein Dairy', barn: 'Barn 1', pen: 'Pen A-12', weightKg: 620, lastDrug: 'Penicillin G Procaine', administeredAt: Date.now() - (71.95 * 3600 * 1000), withdrawalHours: 72, vetId: 'VET-USA-4402', dose: '15 ml (4500mg)' },
+        { tag: 'COW-805', species: 'Bovine', breed: 'Holstein Dairy', barn: 'Barn 1', pen: 'Pen A-14', weightKg: 590, lastDrug: 'Ceftiofur Sodium', administeredAt: Date.now() - (60 * 3600 * 1000), withdrawalHours: 48, vetId: 'VET-USA-4402', dose: '12 ml (1200mg)' },
+        { tag: 'PIG-102', species: 'Swine', breed: 'Yorkshire', barn: 'Barn 2', pen: 'Pen B-03', weightKg: 110, lastDrug: 'Oxytetracycline 200', administeredAt: Date.now() - (130 * 3600 * 1000), withdrawalHours: 120, vetId: 'VET-USA-4402', dose: '8 ml (1600mg)' },
+        { tag: 'PIG-045', species: 'Swine', breed: 'Landrace', barn: 'Barn 2', pen: 'Pen B-05', weightKg: 115, lastDrug: 'Penicillin G Procaine', administeredAt: Date.now() - (2 * 3600 * 1000), withdrawalHours: 72, vetId: 'VET-USA-1187', dose: '10 ml (3000mg)' },
+        { tag: 'COW-310', species: 'Bovine', breed: 'Angus Beef', barn: 'Barn 3', pen: 'Pen C-01', weightKg: 680, lastDrug: 'Ceftiofur Sodium', administeredAt: Date.now() - (12 * 3600 * 1000), withdrawalHours: 48, vetId: 'VET-USA-4402', dose: '15 ml (1500mg)' },
+        { tag: 'COW-311', species: 'Bovine', breed: 'Angus Beef', barn: 'Barn 3', pen: 'Pen C-02', weightKg: 710, lastDrug: null, administeredAt: null, withdrawalHours: 0, vetId: null, dose: null },
+        { tag: 'COW-312', species: 'Bovine', breed: 'Angus Beef', barn: 'Barn 3', pen: 'Pen C-02', weightKg: 695, lastDrug: null, administeredAt: null, withdrawalHours: 0, vetId: null, dose: null },
+        { tag: 'HEN-221', species: 'Poultry', breed: 'Leghorn', barn: 'Barn 4', pen: 'Flock F-7', weightKg: 2.1, lastDrug: 'Oxytetracycline 200', administeredAt: Date.now() - (200 * 3600 * 1000), withdrawalHours: 120, vetId: 'VET-USA-4402', dose: '0.4 ml (80mg)' },
+        { tag: 'HEN-222', species: 'Poultry', breed: 'Leghorn', barn: 'Barn 4', pen: 'Flock F-7', weightKg: 2.3, lastDrug: null, administeredAt: null, withdrawalHours: 0, vetId: null, dose: null },
+        { tag: 'SHEEP-09', species: 'Ovine', breed: 'Dorper', barn: 'Barn 2', pen: 'Pen S-01', weightKg: 75, lastDrug: 'Tilmicosin (Micotil)', administeredAt: Date.now() - (100 * 3600 * 1000), withdrawalHours: 672, vetId: 'VET-USA-1187', dose: '2.5 ml (750mg)' }
+      ],
+
+      // Treatment Hashes & Records in Database (Table: treatments)
+      treatments: [],
+
+      // Fabric Ledger Blocks (CouchDB / World State & Blocks)
+      blocks: [],
+
+      // Active Memory Buffer for duplicate detection during session
+      activeMemoryKeys: new Set(),
+
+      // Shipment permits history
+      shipments: [],
+
+      // Audit violations log
+      violations: []
+    };
+
+    // Helper: current virtual time
+    function getVirtualTime() {
+      return new Date(Date.now() + DB.timeOffsetMs);
+    }
+
+    // Helper: format dates
+    function fmtDate(date) {
+      if (!date) return '—';
+      const d = new Date(date);
+      return d.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+    }
+
+    function fmtShortTime(date) {
+      if (!date) return '—';
+      const d = new Date(date);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    // Calculate Safe Release Time and MRL Status
+    // Formula: Safe Release Time = T_admin + (W_h * 3600s)
+    function getAnimalMrlStatus(animal) {
+      if (!animal.administeredAt || !animal.withdrawalHours || animal.withdrawalHours === 0) {
+        return {
+          status: 'SAFE',
+          releaseTime: null,
+          remainingSeconds: 0,
+          isLocked: false
+        };
+      }
+      const safeReleaseTimeMs = animal.administeredAt + (animal.withdrawalHours * 3600 * 1000);
+      const currentVirtualMs = getVirtualTime().getTime();
+      const remainingSeconds = Math.max(0, Math.floor((safeReleaseTimeMs - currentVirtualMs) / 1000));
+      const isLocked = remainingSeconds > 0;
+      return {
+        status: isLocked ? 'LOCKED' : 'SAFE',
+        releaseTime: new Date(safeReleaseTimeMs),
+        remainingSeconds,
+        isLocked
+      };
+    }
+
+    function formatCountdown(totalSec) {
+      if (totalSec <= 0) return '00h 00m 00s (CLEAR)';
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+    }
+
+    // Initialize mock ledger blocks & treatments with SHA256 hashes
+    async function initMockLedger() {
+      const now = getVirtualTime().getTime();
+      
+      const seedTreatments = [
+        { tag: 'COW-805', drug: 'Ceftiofur Sodium', dose: '12 ml (1200mg)', vetId: 'VET-USA-4402', vetName: 'Dr. Sarah Lin', ts: now - 60 * 3600 * 1000, hours: 48 },
+        { tag: 'PIG-102', drug: 'Oxytetracycline 200', dose: '8 ml (1600mg)', vetId: 'VET-USA-4402', vetName: 'Dr. Sarah Lin', ts: now - 130 * 3600 * 1000, hours: 120 },
+        { tag: 'HEN-221', drug: 'Oxytetracycline 200', dose: '0.4 ml (80mg)', vetId: 'VET-USA-4402', vetName: 'Dr. Sarah Lin', ts: now - 200 * 3600 * 1000, hours: 120 },
+        { tag: 'COW-804', drug: 'Penicillin G Procaine', dose: '15 ml (4500mg)', vetId: 'VET-USA-4402', vetName: 'Dr. Sarah Lin', ts: now - 71.95 * 3600 * 1000, hours: 72 },
+        { tag: 'SHEEP-09', drug: 'Tilmicosin (Micotil)', dose: '2.5 ml (750mg)', vetId: 'VET-USA-1187', vetName: 'Dr. Marcus Vance', ts: now - 100 * 3600 * 1000, hours: 672 }
+      ];
+
+      for (let i = 0; i < seedTreatments.length; i++) {
+        const item = seedTreatments[i];
+        const payloadString = JSON.stringify({
+          animalId: item.tag,
+          drugId: item.drug,
+          dosage: item.dose,
+          timestamp: new Date(item.ts).toISOString(),
+          administeringVet: item.vetId
+        });
+
+        const txHash = await sha256(payloadString + i);
+        const blockHash = await sha256('BLOCK_' + (1040 + i) + '_' + txHash);
+
+        const record = {
+          txId: '0x' + txHash.substring(0, 16),
+          fullHash: txHash,
+          tag: item.tag,
+          drugName: item.drug,
+          dose: item.dose,
+          timestamp: item.ts,
+          vetId: item.vetId,
+          vetName: item.vetName,
+          blockNumber: 1040 + i,
+          blockHash: '0x' + blockHash.substring(0, 24),
+          status: 'COMMITTED',
+          payloadJson: payloadString
+        };
+
+        DB.treatments.unshift(record);
+
+        // Also add key to DB memory
+        const dedupeKey = await sha256(`${item.tag}_${item.drug}_${item.ts}`);
+        DB.activeMemoryKeys.add(dedupeKey);
+
+        DB.blocks.unshift({
+          blockNumber: 1040 + i,
+          blockHash: '0x' + blockHash,
+          prevHash: '0x' + (await sha256('PREV_' + i)).substring(0, 24),
+          txCount: 1,
+          timestamp: item.ts,
+          raftLeader: 'orderer0.farm-raft.internal:7050',
+          peerEndorsements: ['peer0.farmorg.farm.com (Farm Node)', 'peer0.vetassoc.org (Vet Association)'],
+          transactions: [record]
+        });
+      }
+    }
+
+    // --- Simulation Controls ---
+    window.fastForwardHours = function(hours) {
+      DB.timeOffsetMs += hours * 3600 * 1000;
+      updateVirtualClockDisplay();
+      renderCurrentPage();
+      showToast(`Fast-forwarded virtual clock by +${hours} hours. MRL decay re-evaluated.`, 'info');
+    };
+
+    window.resetSimulationTime = function() {
+      DB.timeOffsetMs = 0;
+      updateVirtualClockDisplay();
+      renderCurrentPage();
+      showToast('Virtual time reset to system clock.', 'info');
+    };
+
+    function updateVirtualClockDisplay() {
+      const el = document.getElementById('virtualTimeDisplay');
+      if (el) el.textContent = fmtDate(getVirtualTime());
+    }
+
+    // --- Toast Notifications ---
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      const colors = {
+        success: 'bg-emerald-800 text-white border-emerald-600',
+        error: 'bg-rose-800 text-white border-rose-600',
+        warning: 'bg-amber-800 text-white border-amber-600',
+        info: 'bg-slate-800 text-slate-100 border-slate-700'
+      };
+
+      const icons = {
+        success: '✅',
+        error: '🚨',
+        warning: '⚠️',
+        info: 'ℹ️'
+      };
+
+      toast.className = `p-3.5 rounded-xl text-xs font-medium shadow-xl border flex items-center gap-2.5 transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto ${colors[type] || colors.info}`;
+      toast.innerHTML = `<span class="text-base">${icons[type] || 'ℹ️'}</span><span class="flex-1">${message}</span>`;
+      
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 20);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 4200);
+    }
+
+    // --- Modals ---
+    window.openArchitectureModal = function() {
+      document.getElementById('archModal').classList.remove('hidden');
+    };
+    window.closeArchitectureModal = function() {
+      document.getElementById('archModal').classList.add('hidden');
+    };
+    window.closeCertModal = function() {
+      document.getElementById('certModal').classList.add('hidden');
+    };
+
+    // =========================================================================
+    // ROUTING & NAVIGATION SYSTEM (RBAC Gated)
+    // =========================================================================
+
+    const ROUTES = {
+      // Public
+      'login': { title: 'Authentication & Session Token Gateway', public: true },
+      'unauthorized': { title: '403 Forbidden - Access Denied', public: true },
+      '404': { title: 'Resource Not Found', public: true },
+
+      // Farmhand
+      'farmhand/dashboard': { title: 'Farmhand Overview & Active Pens', roles: ['FARMHAND', 'MANAGER'] },
+      'farmhand/scan': { title: 'Sub-Second RFID / Barcode Scanner', roles: ['FARMHAND', 'MANAGER'] },
+      'farmhand/animals': { title: 'Barn Livestock Herd Directory', roles: ['FARMHAND', 'MANAGER'] },
+      'farmhand/animals/detail': { title: 'Livestock Profile & Real-time MRL Clearance', roles: ['FARMHAND', 'MANAGER'] },
+      'farmhand/barn-transfer': { title: 'Request Pen / Barn Transfer', roles: ['FARMHAND', 'MANAGER'] },
+
+      // Veterinarian
+      'vet/dashboard': { title: 'Veterinarian Activity Hub & Duty Schedule', roles: ['VETERINARIAN', 'MANAGER'] },
+      'vet/treatments/new': { title: 'Single Livestock Prescription & Drug Log Form', roles: ['VETERINARIAN', 'MANAGER'] },
+      'vet/treatments/history': { title: 'Historical Prescription Logs & Ledger Hashes', roles: ['VETERINARIAN', 'MANAGER'] },
+      'vet/data-cleaner/upload': { title: 'Bulk Dataset Ingestion, Deduplication & Shift Check', roles: ['VETERINARIAN', 'MANAGER'] },
+      'vet/data-cleaner/anomalies': { title: 'Shift Anomaly & Duplicate Review Console', roles: ['VETERINARIAN', 'MANAGER'] },
+      'vet/shifts': { title: 'Veterinarian Active Duty Shift Log & Calendar', roles: ['VETERINARIAN', 'MANAGER'] },
+
+      // Manager
+      'manager/dashboard': { title: 'Operations Control Center & MRL Compliance Overview', roles: ['MANAGER'] },
+      'manager/livestock-management/register': { title: 'Herd Registration Console', roles: ['MANAGER'] },
+      'manager/livestock-management/group-status': { title: 'Group MRL Countdown & Lock Status Tracking', roles: ['MANAGER'] },
+      'manager/shipments/request-permit': { title: 'Deterministic Shipment Permit Gatekeeper Rule Engine', roles: ['MANAGER'] },
+      'manager/shipments/history': { title: 'Approved Transport Certificates & Denied Logs', roles: ['MANAGER'] },
+      'manager/amu-analytics': { title: 'Antimicrobial Usage (AMU) Threshold Analytics Console', roles: ['MANAGER'] },
+      'manager/admin/users': { title: 'User Account Management & Role Assignment', roles: ['MANAGER'] },
+      'manager/admin/shift-schedules': { title: 'Master Vet Shift Schedule Editor', roles: ['MANAGER'] },
+
+      // Auditor
+      'auditor/dashboard': { title: 'Government Compliance Overview & Breach Map', roles: ['AUDITOR', 'MANAGER'] },
+      'auditor/blockchain-explorer/blocks': { title: 'Hyperledger Fabric Distributed Ledger Block Explorer', roles: ['AUDITOR', 'MANAGER'] },
+      'auditor/blockchain-explorer/tx': { title: 'Cryptographic Transaction Verification & X.509 Inspector', roles: ['AUDITOR', 'MANAGER'] },
+      'auditor/mrl-breaches': { title: 'Active Violation Investigations & Animal Tracing', roles: ['AUDITOR', 'MANAGER'] },
+      'auditor/reports': { title: 'Regulatory Compliance Report Generator (PDF / CSV)', roles: ['AUDITOR', 'MANAGER'] }
+    };
+
+    let currentRoute = 'login';
+    let routeParams = {};
+
+    function navigateTo(routePath, params = {}) {
+      routeParams = params;
+      window.location.hash = routePath;
+    }
+
+    function checkRouteAccess(routeKey) {
+      const config = ROUTES[routeKey];
+      if (!config) return '404';
+      if (config.public) return routeKey;
+
+      if (!DB.session || !DB.session.user) {
+        return 'login';
+      }
+
+      // Check RBAC
+      if (config.roles && !config.roles.includes(DB.session.user.role)) {
+        return 'unauthorized';
+      }
+
+      return routeKey;
+    }
+
+    function handleHashChange() {
+      let rawHash = window.location.hash.replace(/^#\/?/, '') || '';
+      if (!rawHash) {
+        // default route by role
+        if (!DB.session.user) rawHash = 'login';
+        else if (DB.session.user.role === 'FARMHAND') rawHash = 'farmhand/dashboard';
+        else if (DB.session.user.role === 'VETERINARIAN') rawHash = 'vet/dashboard';
+        else if (DB.session.user.role === 'MANAGER') rawHash = 'manager/dashboard';
+        else if (DB.session.user.role === 'AUDITOR') rawHash = 'auditor/dashboard';
+      }
+
+      // Check for param routes like auditor/blockchain-explorer/tx/0x...
+      if (rawHash.startsWith('auditor/blockchain-explorer/tx/')) {
+        routeParams.hash = rawHash.replace('auditor/blockchain-explorer/tx/', '');
+        rawHash = 'auditor/blockchain-explorer/tx';
+      } else if (rawHash.startsWith('farmhand/animals/')) {
+        routeParams.id = rawHash.replace('farmhand/animals/', '');
+        rawHash = 'farmhand/animals/detail';
+      }
+
+      const verifiedRoute = checkRouteAccess(rawHash);
+      currentRoute = verifiedRoute;
+      renderCurrentPage();
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+
+    // Switch Role Utility (Top switcher)
+    window.switchRole = function(newRole) {
+      if (newRole === 'LOGOUT') {
+        DB.session.user = null;
+        navigateTo('login');
+        showToast('Logged out of AgriShield Portal.', 'info');
+        return;
+      }
+
+      const roleProfiles = {
+        'FARMHAND': { id: 'USR-301', name: 'Jake Miller (Field Hand)', role: 'FARMHAND', licenseId: 'FARM-EMP-91', certFingerprint: 'NONE', org: 'Org1 (Farmhand Operations)' },
+        'VETERINARIAN': { id: 'USR-8821', name: 'Dr. Sarah Lin, DVM', role: 'VETERINARIAN', licenseId: 'VET-USA-4402', certFingerprint: 'SHA256:7B:3A:90:E4:11:5F:82:1C:2B:64:89:12:F1:C9:4A:88', org: 'Org2 (Vet Association Node)' },
+        'MANAGER': { id: 'USR-100', name: 'John Reynolds (Farm Manager)', role: 'MANAGER', licenseId: 'MGR-HQ-01', certFingerprint: 'SHA256:C4:22:98:AA:FE:09:41:00:88:51:D3:99:BC:11:EA:02', org: 'Org1 (Farm Admin Node)' },
+        'AUDITOR': { id: 'USR-900', name: 'Elena Rostova (FDA / USDA Inspector)', role: 'AUDITOR', licenseId: 'GOV-AUDIT-55', certFingerprint: 'SHA256:EE:99:11:44:22:00:BB:CC:DD:AA:33:44:55:66:77:88', org: 'Gov (Department of Agriculture)' }
+      };
+
+      DB.session.user = roleProfiles[newRole];
+      DB.session.issuedAt = Date.now();
+      showToast(`Switched active session to: ${DB.session.user.name} [Role: ${newRole}]`, 'success');
+
+      // Navigate to home route for that role
+      if (newRole === 'FARMHAND') navigateTo('farmhand/dashboard');
+      else if (newRole === 'VETERINARIAN') navigateTo('vet/dashboard');
+      else if (newRole === 'MANAGER') navigateTo('manager/dashboard');
+      else if (newRole === 'AUDITOR') navigateTo('auditor/dashboard');
+    };
+
+    // =========================================================================
+    // LAYOUT SHELL & NAVIGATION UI
+    // =========================================================================
+
+    function renderAppShell(contentHtml, routeTitle) {
+      const u = DB.session.user;
+      const role = u ? u.role : null;
+
+      // Role Badges & Colors
+      const roleBadges = {
+        'FARMHAND': { bg: 'bg-emerald-900/40 text-emerald-300 border-emerald-500/40', label: '🌾 Farmhand' },
+        'VETERINARIAN': { bg: 'bg-blue-900/40 text-blue-300 border-blue-500/40', label: '🩺 Veterinarian' },
+        'MANAGER': { bg: 'bg-amber-900/40 text-amber-300 border-amber-500/40', label: '🏢 Farm Manager' },
+        'AUDITOR': { bg: 'bg-purple-900/40 text-purple-300 border-purple-500/40', label: '🏛️ Gov Auditor' }
+      };
+
+      // Navigation Items based on RBAC
+      const navSections = [];
+
+      if (role === 'FARMHAND' || role === 'MANAGER') {
+        navSections.push({
+          section: 'Farmhand Tools',
+          items: [
+            { path: 'farmhand/dashboard', icon: '📊', label: 'Field Dashboard' },
+            { path: 'farmhand/scan', icon: '🔍', label: 'RFID / Tag Scanner' },
+            { path: 'farmhand/animals', icon: '🐄', label: 'Barn Livestock Herd' },
+            { path: 'farmhand/barn-transfer', icon: '🚚', label: 'Pen Move Request' },
+          ]
+        });
+      }
+
+      if (role === 'VETERINARIAN' || role === 'MANAGER') {
+        navSections.push({
+          section: 'Veterinary Hub',
+          items: [
+            { path: 'vet/dashboard', icon: '📋', label: 'Vet Activity Center' },
+            { path: 'vet/treatments/new', icon: '💉', label: 'New Prescription' },
+            { path: 'vet/treatments/history', icon: '📜', label: 'Prescription Logs' },
+            { path: 'vet/data-cleaner/upload', icon: '🧹', label: 'Data Ingestion & Cleaner' },
+            { path: 'vet/data-cleaner/anomalies', icon: '⚠️', label: 'Shift Anomalies Review' },
+            { path: 'vet/shifts', icon: '📅', label: 'Duty Shifts Log' },
+          ]
+        });
+      }
+
+      if (role === 'MANAGER') {
+        navSections.push({
+          section: 'Manager Logistics & Admin',
+          items: [
+            { path: 'manager/dashboard', icon: '📈', label: 'Operations Center' },
+            { path: 'manager/shipments/request-permit', icon: '🛡️', label: 'Shipment Gatekeeper' },
+            { path: 'manager/shipments/history', icon: '📦', label: 'Shipment Permits Log' },
+            { path: 'manager/amu-analytics', icon: '🔬', label: 'AMU Index & Thresholds' },
+            { path: 'manager/livestock-management/group-status', icon: '⏱️', label: 'Herd MRL Countdowns' },
+            { path: 'manager/livestock-management/register', icon: '➕', label: 'Register Animal' },
+            { path: 'manager/admin/users', icon: '👥', label: 'User Admin & Keys' },
+            { path: 'manager/admin/shift-schedules', icon: '🗓️', label: 'Vet Shift Schedules' },
+          ]
+        });
+      }
+
+      if (role === 'AUDITOR' || role === 'MANAGER') {
+        navSections.push({
+          section: 'Government Auditor Portal',
+          items: [
+            { path: 'auditor/dashboard', icon: '🏛️', label: 'Compliance Overview' },
+            { path: 'auditor/blockchain-explorer/blocks', icon: '⛓️', label: 'Hyperledger Explorer' },
+            { path: 'auditor/mrl-breaches', icon: '🚨', label: 'MRL Violation Traces' },
+            { path: 'auditor/reports', icon: '📄', label: 'Official Audit Reports' },
+          ]
+        });
+      }
+
+      return `
+        <div class="flex-1 flex overflow-hidden">
+          <!-- Sidebar -->
+          <aside class="w-64 bg-forest text-slate-200 flex flex-col border-r border-brand-950 flex-shrink-0 z-20">
+            <!-- Brand -->
+            <div class="p-4 border-b border-brand-900/60 flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-amber-custom flex items-center justify-center text-white font-black text-lg shadow-md">
+                  🛡️
+                </div>
+                <div>
+                  <h1 class="font-extrabold text-sm tracking-tight text-white leading-none">AGRISHIELD</h1>
+                  <span class="text-[10px] text-brand-200 tracking-wider font-mono">PORTAL V2.5</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Role Indicator Pill -->
+            <div class="px-4 py-3 bg-brand-950/60 border-b border-brand-900/40 flex items-center justify-between text-xs">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Logged In As:</span>
+                <span class="font-semibold text-white truncate max-w-[130px] block" title="${u.name}">${u.name.split(' ')[0]} ${u.name.split(' ')[1] || ''}</span>
+              </div>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${roleBadges[role].bg}">
+                ${roleBadges[role].label}
+              </span>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-5 text-xs">
+              ${navSections.map(sec => `
+                <div>
+                  <div class="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400/80">
+                    ${sec.section}
+                  </div>
+                  <div class="space-y-0.5">
+                    ${sec.items.map(it => {
+                      const isActive = currentRoute === it.path;
+                      return `
+                        <button onclick="navigateTo('${it.path}')" class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition font-medium ${
+                          isActive 
+                            ? 'bg-emerald-500/20 text-white font-semibold border-l-4 border-emerald-400 shadow-sm' 
+                            : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                        }">
+                          <span class="text-sm">${it.icon}</span>
+                          <span class="truncate">${it.label}</span>
+                        </button>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </nav>
+
+            <!-- Quick Role Switcher (Essential for Pair Programming & Testing) -->
+            <div class="p-3 bg-brand-950 border-t border-brand-900/70">
+              <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1.5">
+                ⚡ Demo Role Switcher:
+              </label>
+              <select onchange="window.switchRole(this.value)" class="w-full bg-slate-900 text-slate-200 text-xs border border-slate-700 rounded-lg p-1.5 font-medium focus:ring-1 focus:ring-emerald-400">
+                <option value="FARMHAND" ${role === 'FARMHAND' ? 'selected' : ''}>🌾 Jake (Farmhand)</option>
+                <option value="VETERINARIAN" ${role === 'VETERINARIAN' ? 'selected' : ''}>🩺 Dr. Lin (Veterinarian)</option>
+                <option value="MANAGER" ${role === 'MANAGER' ? 'selected' : ''}>🏢 John (Farm Manager)</option>
+                <option value="AUDITOR" ${role === 'AUDITOR' ? 'selected' : ''}>🏛️ Elena (Gov Auditor)</option>
+                <option value="LOGOUT">🚪 Logout Session</option>
+              </select>
+            </div>
+          </aside>
+
+          <!-- Main Content Area -->
+          <div class="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
+            <!-- Header Bar -->
+            <header class="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between flex-shrink-0 z-10 shadow-sm">
+              <div class="flex items-center gap-3">
+                <h2 class="text-base font-bold text-slate-900 tracking-tight">${routeTitle}</h2>
+                <span class="text-xs text-slate-400 hidden md:inline">|</span>
+                <span class="text-xs text-slate-500 font-mono hidden md:inline">Route: /${currentRoute}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <!-- Tag Quick Search -->
+                <div class="relative hidden sm:block">
+                  <input type="text" id="quickTagSearch" placeholder="Scan Tag ID (e.g. COW-804)..." 
+                    onkeydown="if(event.key==='Enter') window.quickLookupTag(this.value)"
+                    class="w-56 bg-slate-100 border border-slate-300 rounded-lg px-3 py-1.5 text-xs pl-8 focus:bg-white focus:ring-2 focus:ring-brand-700 outline-none">
+                  <span class="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                </div>
+                
+                <!-- Quick Token Countdown Badge -->
+                <div class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 rounded-full border border-slate-200 text-[11px] font-mono text-slate-600" title="JWT Session Token Remaining">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span>JWT: <strong id="jwtTimer">14:58</strong></span>
+                </div>
+              </div>
+            </header>
+
+            <!-- Page Body -->
+            <main class="flex-1 overflow-y-auto p-6">
+              ${contentHtml}
+            </main>
+          </div>
+        </div>
+      `;
+    }
+
+    // Quick tag search handler
+    window.quickLookupTag = function(tag) {
+      if (!tag) return;
+      const clean = tag.trim().toUpperCase();
+      const a = DB.animals.find(x => x.tag.toUpperCase() === clean);
+      if (a) {
+        navigateTo('farmhand/animals/detail', { id: a.tag });
+      } else {
+        showToast(`Animal tag "${clean}" not found in herd database.`, 'warning');
+      }
+    };
+
+    // =========================================================================
+    // PAGE RENDERERS
+    // =========================================================================
+
+    function renderCurrentPage() {
+      const root = document.getElementById('appRoot');
+      const routeKey = currentRoute;
+
+      // Public pages
+      if (routeKey === 'login') {
+        root.innerHTML = renderLoginPage();
+        return;
+      }
+      if (routeKey === 'unauthorized') {
+        root.innerHTML = renderAppShell(renderUnauthorizedPage(), '403 Forbidden');
+        return;
+      }
+      if (routeKey === '404') {
+        root.innerHTML = renderAppShell(render404Page(), '404 Not Found');
+        return;
+      }
+
+      const routeConfig = ROUTES[routeKey] || { title: 'AgriShield Portal' };
+
+      // Render according to route
+      let content = '';
+      switch (routeKey) {
+        // Farmhand
+        case 'farmhand/dashboard': content = renderFarmhandDashboard(); break;
+        case 'farmhand/scan': content = renderScannerPage(); break;
+        case 'farmhand/animals': content = renderAnimalsPage(); break;
+        case 'farmhand/animals/detail': content = renderAnimalDetailPage(routeParams.id); break;
+        case 'farmhand/barn-transfer': content = renderBarnTransferPage(); break;
+
+        // Vet
+        case 'vet/dashboard': content = renderVetDashboard(); break;
+        case 'vet/treatments/new': content = renderNewTreatmentPage(); break;
+        case 'vet/treatments/history': content = renderTreatmentHistoryPage(); break;
+        case 'vet/data-cleaner/upload': content = renderDataCleanerPage(); break;
+        case 'vet/data-cleaner/anomalies': content = renderDataCleanerAnomaliesPage(); break;
+        case 'vet/shifts': content = renderVetShiftsPage(); break;
+
+        // Manager
+        case 'manager/dashboard': content = renderManagerDashboard(); break;
+        case 'manager/shipments/request-permit': content = renderShippingGatekeeperPage(); break;
+        case 'manager/shipments/history': content = renderShipmentsHistoryPage(); break;
+        case 'manager/amu-analytics': content = renderAmuAnalyticsPage(); break;
+        case 'manager/livestock-management/group-status': content = renderGroupStatusPage(); break;
+        case 'manager/livestock-management/register': content = renderRegisterAnimalPage(); break;
+        case 'manager/admin/users': content = renderAdminUsersPage(); break;
+        case 'manager/admin/shift-schedules': content = renderAdminShiftSchedulesPage(); break;
+
+        // Auditor
+        case 'auditor/dashboard': content = renderAuditorDashboard(); break;
+        case 'auditor/blockchain-explorer/blocks': content = renderBlockchainExplorerBlocks(); break;
+        case 'auditor/blockchain-explorer/tx': content = renderBlockchainTxVerify(routeParams.hash); break;
+        case 'auditor/mrl-breaches': content = renderMrlBreachesPage(); break;
+        case 'auditor/reports': content = renderAuditorReportsPage(); break;
+
+        default: content = `<div class="p-8 text-center text-slate-500">Route renderer under construction: ${routeKey}</div>`;
+      }
+
+      root.innerHTML = renderAppShell(content, routeConfig.title);
+      wirePostRenderHooks(routeKey);
+    }
+
+    // =========================================================================
+    // 1. AUTHENTICATION & LOGIN PAGE
+    // =========================================================================
+
+    function renderLoginPage() {
+      return `
+        <div class="min-h-full flex items-center justify-center p-6 bg-gradient-to-br from-forest-dark via-forest to-slate-900 text-white">
+          <div class="max-w-md w-full bg-white text-slate-800 rounded-3xl p-8 shadow-2xl border border-white/20">
+            <div class="text-center mb-6">
+              <div class="w-16 h-16 rounded-2xl bg-amber-500/20 border-2 border-amber-500 mx-auto flex items-center justify-center text-3xl mb-3 shadow-lg">
+                🛡️
+              </div>
+              <h1 class="text-2xl font-black text-slate-900 tracking-tight">AGRISHIELD PORTAL</h1>
+              <p class="text-xs text-slate-500 mt-1">Farm MRL Safety & Cryptographic Blockchain Gateway</p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 text-xs text-amber-900 leading-relaxed">
+              <strong>Select a Demo Role & Identity:</strong>
+              <div class="grid grid-cols-2 gap-2 mt-2">
+                <button type="button" onclick="window.switchRole('VETERINARIAN')" class="p-2.5 bg-white border border-amber-300 rounded-lg text-left hover:border-forest transition">
+                  <div class="font-bold text-xs text-slate-900">🩺 Veterinarian</div>
+                  <div class="text-[10px] text-slate-500">Dr. Sarah Lin (DVM)</div>
+                </button>
+                <button type="button" onclick="window.switchRole('MANAGER')" class="p-2.5 bg-white border border-amber-300 rounded-lg text-left hover:border-forest transition">
+                  <div class="font-bold text-xs text-slate-900">🏢 Farm Manager</div>
+                  <div class="text-[10px] text-slate-500">John Reynolds</div>
+                </button>
+                <button type="button" onclick="window.switchRole('FARMHAND')" class="p-2.5 bg-white border border-amber-300 rounded-lg text-left hover:border-forest transition">
+                  <div class="font-bold text-xs text-slate-900">🌾 Farmhand</div>
+                  <div class="text-[10px] text-slate-500">Jake Miller</div>
+                </button>
+                <button type="button" onclick="window.switchRole('AUDITOR')" class="p-2.5 bg-white border border-amber-300 rounded-lg text-left hover:border-forest transition">
+                  <div class="font-bold text-xs text-slate-900">🏛️ Gov Auditor</div>
+                  <div class="text-[10px] text-slate-500">Elena Rostova</div>
+                </button>
+              </div>
+            </div>
+
+            <form onsubmit="event.preventDefault(); window.switchRole('VETERINARIAN');" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Registration License ID / X.509 Common Name</label>
+                <input type="text" value="VET-USA-4402" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-mono focus:ring-2 focus:ring-forest outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Hardware Security Key / PIN</label>
+                <input type="password" value="••••••••••••" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-mono focus:ring-2 focus:ring-forest outline-none">
+              </div>
+              <button type="submit" class="w-full py-3 bg-forest hover:bg-forest-light text-white font-bold rounded-xl text-xs uppercase tracking-wider transition shadow-lg">
+                🔐 Sign In with TLS 1.3 Credentials
+              </button>
+            </form>
+
+            <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+              <span>Hyperledger 2.5 Fabric Peer</span>
+              <span class="text-emerald-600 font-bold">● Network Sync 100%</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderUnauthorizedPage() {
+      return `
+        <div class="max-w-xl mx-auto py-12 text-center">
+          <div class="w-20 h-20 bg-rose-100 text-rose-600 rounded-3xl mx-auto flex items-center justify-center text-4xl mb-4 shadow-sm">
+            🚫
+          </div>
+          <h2 class="text-2xl font-black text-slate-900">HTTP 403 Forbidden</h2>
+          <p class="text-sm text-slate-600 mt-2">
+            Your current role (<strong class="text-rose-600">${DB.session.user.role}</strong>) does not have authorization to access this route or state-modifying API endpoint.
+          </p>
+          <div class="mt-6 p-4 bg-white rounded-xl border border-slate-200 text-left text-xs space-y-2">
+            <div class="font-bold text-slate-800">RBAC Condition Enforcement Matrix:</div>
+            <p class="text-slate-600">&bull; <strong>FARMHAND:</strong> Restricted to <code>/farmhand/*</code> and read-only scanner. Write requests to <code>/api/v1/amu/submit</code> or ledger return 403.</p>
+            <p class="text-slate-600">&bull; <strong>VETERINARIAN:</strong> Authorized for <code>/vet/*</code> with digital X.509 signing.</p>
+            <p class="text-slate-600">&bull; <strong>MANAGER:</strong> Full operations, shipment gatekeeper, user admin.</p>
+            <p class="text-slate-600">&bull; <strong>AUDITOR:</strong> Read-only compliance views on <code>/auditor/*</code>.</p>
+          </div>
+          <div class="mt-6 flex justify-center gap-3">
+            <button onclick="navigateTo('login')" class="px-5 py-2.5 bg-forest text-white rounded-xl text-xs font-bold hover:bg-forest-light transition">
+              Switch User Identity
+            </button>
+            <button onclick="window.history.back()" class="px-5 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold hover:bg-slate-100 transition">
+              Return to Previous View
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function render404Page() {
+      return `
+        <div class="max-w-md mx-auto py-12 text-center">
+          <div class="text-5xl font-black text-slate-300 mb-2">404</div>
+          <h2 class="text-xl font-bold text-slate-800">Route Not Found</h2>
+          <p class="text-xs text-slate-500 mt-2">The requested AgriShield endpoint does not exist.</p>
+          <button onclick="navigateTo('login')" class="mt-6 px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-medium">Return Home</button>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 2. FARMHAND UI MODULES
+    // =========================================================================
+
+    function renderFarmhandDashboard() {
+      const lockedAnimals = DB.animals.map(a => ({ ...a, mrl: getAnimalMrlStatus(a) })).filter(a => a.mrl.isLocked);
+      const safeAnimals = DB.animals.filter(a => !getAnimalMrlStatus(a).isLocked);
+
+      return `
+        <div class="space-y-6">
+          <!-- Top Hero Alert -->
+          <div class="bg-gradient-to-r from-forest to-forest-light text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-bold uppercase tracking-wider text-emerald-300 bg-emerald-900/60 px-2.5 py-1 rounded-full border border-emerald-500/40">
+                Barn Operations Control
+              </span>
+              <h2 class="text-xl font-bold mt-2">Field Status & Milking Safety Clearance</h2>
+              <p class="text-xs text-slate-200 mt-1 max-w-xl">
+                Always scan an animal's RFID ear tag prior to milking or loading for transport. Real-time MRL calculations protect the commercial food supply.
+              </p>
+            </div>
+            <button onclick="navigateTo('farmhand/scan')" class="px-5 py-3 bg-amber-custom hover:bg-amber-600 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition shadow-lg flex items-center gap-2">
+              <span class="text-base">🔍</span> Quick RFID Tag Scanner
+            </button>
+          </div>
+
+          <!-- KPI Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <span class="text-xs text-slate-500 font-medium">Total Registered Herd</span>
+              <div class="text-2xl font-black text-slate-900 mt-1">${DB.animals.length} <span class="text-xs font-normal text-slate-500">Heads</span></div>
+              <div class="text-[11px] text-emerald-600 mt-1">● 100% RFID Tagged</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-rose-200 shadow-sm">
+              <span class="text-xs text-rose-600 font-bold">LOCKED Under Withdrawal</span>
+              <div class="text-2xl font-black text-rose-600 mt-1">${lockedAnimals.length} <span class="text-xs font-normal text-rose-500">DO NOT MILK</span></div>
+              <div class="text-[11px] text-rose-500 mt-1">Automatic gate hold active</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-emerald-200 shadow-sm">
+              <span class="text-xs text-emerald-700 font-bold">MRL Compliant / SAFE</span>
+              <div class="text-2xl font-black text-emerald-600 mt-1">${safeAnimals.length} <span class="text-xs font-normal text-emerald-500">Ready</span></div>
+              <div class="text-[11px] text-emerald-600 mt-1">Available for food supply</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <span class="text-xs text-slate-500 font-medium">Pending Pen Moves</span>
+              <div class="text-2xl font-black text-slate-800 mt-1">2 <span class="text-xs font-normal text-slate-500">Requests</span></div>
+              <div class="text-[11px] text-slate-500 mt-1">Quarantine to Barn 1</div>
+            </div>
+          </div>
+
+          <!-- Active Withdrawal Animals List -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm">Animals Currently Under Mandatory Drug Withdrawal</h3>
+                <p class="text-xs text-slate-500">Automatic decay engine evaluates status continuously</p>
+              </div>
+              <span class="px-2.5 py-1 bg-rose-100 text-rose-800 border border-rose-200 rounded-full text-xs font-bold">
+                ${lockedAnimals.length} Active Holds
+              </span>
+            </div>
+            <div class="divide-y divide-slate-100">
+              ${lockedAnimals.length === 0 ? `
+                <div class="p-8 text-center text-slate-400 text-xs">No animals are currently under withdrawal hold.</div>
+              ` : lockedAnimals.map(a => `
+                <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 font-black text-sm flex items-center justify-center">
+                      🔴
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <strong class="text-sm text-slate-900 font-mono">${a.tag}</strong>
+                        <span class="text-xs text-slate-500">(${a.species} · ${a.breed})</span>
+                      </div>
+                      <div class="text-xs text-slate-500 mt-0.5">
+                        Location: <span class="font-medium text-slate-700">${a.barn} · ${a.pen}</span> | Drug: <strong class="text-slate-800">${a.lastDrug}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-4">
+                    <div class="text-right">
+                      <span class="text-[10px] text-rose-500 uppercase font-bold tracking-wider block">Time to Release:</span>
+                      <span class="font-mono font-black text-rose-600 text-sm countdown-timer" data-tag="${a.tag}">
+                        ${formatCountdown(a.mrl.remainingSeconds)}
+                      </span>
+                    </div>
+                    <button onclick="navigateTo('farmhand/animals/detail', { id: '${a.tag}' })" class="px-3 py-1.5 border border-slate-300 hover:bg-white text-slate-700 rounded-lg text-xs font-semibold shadow-sm transition">
+                      View Profile
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // --- Sub-Second RFID Tag Scanner Simulation ---
+    function renderScannerPage() {
+      return `
+        <div class="max-w-2xl mx-auto space-y-6">
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-4 mb-5">
+              <div>
+                <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <span>📡 Sub-Second RFID / Barcode Scanner</span>
+                </h3>
+                <p class="text-xs text-slate-500">Emulates handheld reader hardware via TLS 1.3 endpoint</p>
+              </div>
+              <span class="bg-emerald-100 text-emerald-800 text-[10px] font-mono px-2 py-1 rounded font-bold">
+                READER READY: 915 MHz UHF
+              </span>
+            </div>
+
+            <!-- Virtual Scanner Input -->
+            <div class="relative bg-slate-900 rounded-2xl p-6 text-center overflow-hidden border-2 border-slate-800">
+              <div class="w-full h-1 bg-emerald-400 absolute top-0 left-0 scanner-beam opacity-80"></div>
+              
+              <div class="text-slate-400 text-xs font-mono uppercase tracking-widest mb-3">
+                [ Place RFID Tag Near Scanner Beam ]
+              </div>
+
+              <div class="flex max-w-sm mx-auto gap-2">
+                <input type="text" id="scannerTagInput" placeholder="Enter or scan Ear Tag (e.g. COW-804)..." 
+                  onkeydown="if(event.key==='Enter') window.executeScan(this.value)"
+                  class="flex-1 bg-slate-800 border border-slate-700 text-white font-mono text-sm px-4 py-2.5 rounded-xl focus:border-emerald-400 outline-none uppercase text-center font-bold tracking-wider">
+                <button onclick="window.executeScan(document.getElementById('scannerTagInput').value)" class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-xl transition">
+                  Scan
+                </button>
+              </div>
+
+              <!-- Quick Tag Demo Buttons -->
+              <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-center gap-2 flex-wrap text-xs text-slate-400">
+                <span>Test Tags:</span>
+                <button onclick="window.executeScan('COW-804')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded font-mono text-[11px] border border-slate-700">COW-804 (Hold ~18s)</button>
+                <button onclick="window.executeScan('PIG-045')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-rose-300 rounded font-mono text-[11px] border border-slate-700">PIG-045 (Locked 70h)</button>
+                <button onclick="window.executeScan('COW-311')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded font-mono text-[11px] border border-slate-700">COW-311 (Clean Safe)</button>
+                <button onclick="window.executeScan('HEN-221')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded font-mono text-[11px] border border-slate-700">HEN-221 (Cleared)</button>
+              </div>
+            </div>
+
+            <!-- Scanner Output Display Panel -->
+            <div id="scanResultArea" class="mt-6">
+              <div class="p-8 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl text-xs">
+                Awaiting RFID tag pulse...
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    window.executeScan = function(tagValue) {
+      if (!tagValue) return;
+      const tag = tagValue.trim().toUpperCase();
+      const animal = DB.animals.find(a => a.tag.toUpperCase() === tag);
+      const output = document.getElementById('scanResultArea');
+
+      if (!animal) {
+        audio.scanLocked();
+        output.innerHTML = `
+          <div class="bg-rose-50 border border-rose-300 rounded-2xl p-5 text-center text-rose-800">
+            <div class="text-2xl mb-1">⚠️</div>
+            <h4 class="font-bold text-sm">TAG UNRECOGNIZED IN ACTIVE HERD</h4>
+            <p class="text-xs text-rose-600 mt-1">Tag "${tag}" does not match any registered livestock profile in PostgreSQL master DB.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const mrl = getAnimalMrlStatus(animal);
+
+      if (mrl.isLocked) {
+        audio.scanLocked();
+        output.innerHTML = `
+          <div class="bg-rose-50 border-2 border-rose-500 rounded-2xl p-6 glow-danger animate-pulse-subtle">
+            <div class="flex items-center justify-between pb-3 border-b border-rose-200 mb-4">
+              <div class="flex items-center gap-3">
+                <span class="text-3xl">🛑</span>
+                <div>
+                  <h3 class="text-lg font-black text-rose-700 tracking-tight font-mono">${animal.tag} — LOCKED</h3>
+                  <span class="text-xs font-bold text-rose-800 uppercase tracking-wider">DO NOT MILK / SHIP / SLAUGHTER</span>
+                </div>
+              </div>
+              <span class="px-3 py-1 bg-rose-600 text-white font-mono text-xs font-bold rounded-lg shadow-sm">
+                HTTP 423 LOCKED
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div class="bg-white p-3 rounded-xl border border-rose-200 space-y-1">
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Active Chemical Hold:</span>
+                <strong class="text-slate-800 text-sm">${animal.lastDrug}</strong>
+                <div class="text-slate-500">Administered: ${fmtDate(animal.administeredAt)}</div>
+              </div>
+              <div class="bg-white p-3 rounded-xl border border-rose-200 space-y-1">
+                <span class="text-rose-500 block text-[10px] uppercase font-bold">Withdrawal Countdown:</span>
+                <div class="font-mono text-xl font-black text-rose-600 countdown-timer" data-tag="${animal.tag}">
+                  ${formatCountdown(mrl.remainingSeconds)}
+                </div>
+                <div class="text-slate-500">Safe Release: ${fmtDate(mrl.releaseTime)}</div>
+              </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-rose-200 flex justify-between items-center text-xs">
+              <span class="text-slate-600">Prescribing Vet: <strong class="text-slate-800">${animal.vetId}</strong></span>
+              <button onclick="navigateTo('farmhand/animals/detail', { id: '${animal.tag}' })" class="px-3 py-1 bg-rose-600 text-white font-semibold rounded-lg hover:bg-rose-700 transition">
+                Full Chemical Profile &rarr;
+              </button>
+            </div>
+          </div>
+        `;
+      } else {
+        audio.scanSuccess();
+        output.innerHTML = `
+          <div class="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-6 glow-safe">
+            <div class="flex items-center justify-between pb-3 border-b border-emerald-200 mb-4">
+              <div class="flex items-center gap-3">
+                <span class="text-3xl">🟢</span>
+                <div>
+                  <h3 class="text-lg font-black text-emerald-800 tracking-tight font-mono">${animal.tag} — SAFE / CLEAR</h3>
+                  <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">MRL COMPLIANT — READY FOR FOOD SUPPLY</span>
+                </div>
+              </div>
+              <span class="px-3 py-1 bg-emerald-600 text-white font-mono text-xs font-bold rounded-lg shadow-sm">
+                HTTP 200 OK
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div class="bg-white p-3 rounded-xl border border-emerald-200">
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Species & Breed</span>
+                <strong class="text-slate-800">${animal.species} (${animal.breed})</strong>
+              </div>
+              <div class="bg-white p-3 rounded-xl border border-emerald-200">
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Barn Location</span>
+                <strong class="text-slate-800">${animal.barn} · ${animal.pen}</strong>
+              </div>
+              <div class="bg-white p-3 rounded-xl border border-emerald-200">
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">MRL Status</span>
+                <strong class="text-emerald-700 font-bold">0 Active Residuals</strong>
+              </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-emerald-200 flex justify-between items-center text-xs">
+              <span class="text-slate-500">Cleared for milk, beef or commercial transport.</span>
+              <button onclick="navigateTo('farmhand/animals/detail', { id: '${animal.tag}' })" class="px-3 py-1 bg-emerald-700 text-white font-semibold rounded-lg hover:bg-emerald-800 transition">
+                Animal Dossier &rarr;
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    };
+
+    function renderAnimalsPage() {
+      return `
+        <div class="space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Barn Livestock Herd Master Registry</h3>
+              <p class="text-xs text-slate-500">Live MRL tracking across all species and housing facilities</p>
+            </div>
+            <div class="flex gap-2">
+              <input type="text" id="herdTableFilter" placeholder="Filter by Tag, Barn, or Species..." 
+                oninput="window.filterHerdTable(this.value)"
+                class="border border-slate-300 rounded-xl px-3 py-1.5 text-xs focus:ring-2 focus:ring-forest outline-none">
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                  <th class="p-3.5">Ear Tag ID</th>
+                  <th class="p-3.5">Species / Breed</th>
+                  <th class="p-3.5">Barn / Pen</th>
+                  <th class="p-3.5">Weight</th>
+                  <th class="p-3.5">Active Drug Hold</th>
+                  <th class="p-3.5">MRL Compliance Status</th>
+                  <th class="p-3.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="herdTableBody" class="divide-y divide-slate-100 font-medium">
+                ${renderHerdTableRows(DB.animals)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderHerdTableRows(list) {
+      return list.map(a => {
+        const mrl = getAnimalMrlStatus(a);
+        return `
+          <tr class="hover:bg-slate-50/80 transition">
+            <td class="p-3.5 font-mono font-bold text-slate-900">${a.tag}</td>
+            <td class="p-3.5">${a.species} <span class="text-slate-400">(${a.breed})</span></td>
+            <td class="p-3.5 text-slate-700">${a.barn} · ${a.pen}</td>
+            <td class="p-3.5 text-slate-600">${a.weightKg} kg</td>
+            <td class="p-3.5">
+              ${a.lastDrug ? `<span class="text-slate-800 font-semibold">${a.lastDrug}</span>` : '<span class="text-slate-400">None Recorded</span>'}
+            </td>
+            <td class="p-3.5">
+              ${mrl.isLocked ? `
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                  <span class="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span>
+                  LOCKED (${formatCountdown(mrl.remainingSeconds)})
+                </span>
+              ` : `
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+                  SAFE / CLEAR
+                </span>
+              `}
+            </td>
+            <td class="p-3.5 text-right">
+              <button onclick="navigateTo('farmhand/animals/detail', { id: '${a.tag}' })" class="px-2.5 py-1 text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-100 rounded-lg text-xs font-semibold">
+                Profile
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    window.filterHerdTable = function(query) {
+      const q = (query || '').toLowerCase().trim();
+      const filtered = DB.animals.filter(a => 
+        a.tag.toLowerCase().includes(q) || 
+        a.barn.toLowerCase().includes(q) || 
+        a.species.toLowerCase().includes(q) ||
+        (a.lastDrug && a.lastDrug.toLowerCase().includes(q))
+      );
+      document.getElementById('herdTableBody').innerHTML = renderHerdTableRows(filtered);
+    };
+
+    function renderAnimalDetailPage(tagId) {
+      const animal = DB.animals.find(a => a.tag === tagId) || DB.animals[0];
+      const mrl = getAnimalMrlStatus(animal);
+
+      return `
+        <div class="space-y-6 max-w-4xl mx-auto">
+          <div class="flex items-center justify-between">
+            <button onclick="navigateTo('farmhand/animals')" class="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium">
+              &larr; Back to Herd Registry
+            </button>
+            <span class="font-mono text-xs text-slate-400">PostgreSQL ID: ${animal.tag}</span>
+          </div>
+
+          <!-- Hero Profile Card -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-center gap-4">
+              <div class="w-16 h-16 rounded-2xl ${mrl.isLocked ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'} flex items-center justify-center text-3xl font-black shadow-inner">
+                ${animal.species === 'Bovine' ? '🐄' : animal.species === 'Swine' ? '🐖' : animal.species === 'Poultry' ? '🐔' : '🐑'}
+              </div>
+              <div>
+                <div class="flex items-center gap-3">
+                  <h2 class="text-2xl font-black text-slate-900 font-mono">${animal.tag}</h2>
+                  <span class="px-3 py-1 rounded-full text-xs font-bold border ${mrl.isLocked ? 'bg-rose-100 text-rose-800 border-rose-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300'}">
+                    ${mrl.status}
+                  </span>
+                </div>
+                <div class="text-xs text-slate-500 mt-1">
+                  ${animal.species} &bull; Breed: <strong>${animal.breed}</strong> &bull; Body Mass: <strong>${animal.weightKg} kg</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex gap-2">
+              <button onclick="window.executeScan('${animal.tag}'); navigateTo('farmhand/scan');" class="px-3 py-2 bg-slate-800 text-white rounded-xl text-xs font-semibold hover:bg-slate-700 transition">
+                📡 Simulate Scanner Beep
+              </button>
+            </div>
+          </div>
+
+          <!-- MRL & Chemical Status -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+              <h4 class="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2">Active Pharmacological Hold</h4>
+              <div class="space-y-2 text-xs">
+                <div class="flex justify-between py-1 border-b border-slate-50">
+                  <span class="text-slate-500">Prescribed Drug:</span>
+                  <strong class="text-slate-800">${animal.lastDrug || 'None (Drug-Free)'}</strong>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-50">
+                  <span class="text-slate-500">Dosage Administered:</span>
+                  <strong class="text-slate-800">${animal.dose || '—'}</strong>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-50">
+                  <span class="text-slate-500">Mandatory Withdrawal Window:</span>
+                  <strong class="text-slate-800">${animal.withdrawalHours ? animal.withdrawalHours + ' Hours' : '0 Hours'}</strong>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-50">
+                  <span class="text-slate-500">Administered At (UTC):</span>
+                  <span class="font-mono text-slate-700">${fmtDate(animal.administeredAt)}</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-50">
+                  <span class="text-slate-500">Safe Release Time:</span>
+                  <span class="font-mono text-slate-700">${fmtDate(mrl.releaseTime)}</span>
+                </div>
+                <div class="flex justify-between py-1">
+                  <span class="text-slate-500">Administering Veterinarian:</span>
+                  <span class="font-medium text-slate-800">${animal.vetId || '—'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+              <div>
+                <h4 class="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2">Live Status Decay Countdown</h4>
+                <div class="p-6 text-center mt-3">
+                  <div class="text-xs uppercase tracking-wider font-bold ${mrl.isLocked ? 'text-rose-500' : 'text-emerald-600'}">
+                    ${mrl.isLocked ? 'Time Remaining Until Chemical Clearance' : 'Livestock Cleared for Food Chain'}
+                  </div>
+                  <div class="font-mono text-2xl sm:text-3xl font-black mt-2 ${mrl.isLocked ? 'text-rose-600' : 'text-emerald-600'} countdown-timer" data-tag="${animal.tag}">
+                    ${formatCountdown(mrl.remainingSeconds)}
+                  </div>
+                </div>
+              </div>
+              <div class="bg-slate-50 p-3 rounded-xl text-[11px] text-slate-500 leading-relaxed">
+                <strong>Deterministic Rule Engine:</strong> Manual overrides are strictly prohibited by the application tier. Status is calculated via <code>Status = (T_current &lt; Safe_Release_Time) ? LOCKED : SAFE</code>.
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderBarnTransferPage() {
+      return `
+        <div class="max-w-xl mx-auto bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <h3 class="font-bold text-slate-900 text-base">Request Livestock Barn / Pen Transfer</h3>
+          <p class="text-xs text-slate-500">Transfers are logged with cryptographic timestamps to ensure traceability across housing sectors.</p>
+
+          <form onsubmit="event.preventDefault(); window.submitBarnTransfer();" class="space-y-4 text-xs">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Select Animal Tag</label>
+              <select id="transferTag" class="w-full border border-slate-300 rounded-xl p-2.5 font-mono">
+                ${DB.animals.map(a => `<option value="${a.tag}">${a.tag} (${a.species} - Currently: ${a.barn}, ${a.pen})</option>`).join('')}
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Destination Barn</label>
+                <select id="transferBarn" class="w-full border border-slate-300 rounded-xl p-2.5">
+                  <option>Barn 1 (Dairy High-Yield)</option>
+                  <option>Barn 2 (Swine Growth)</option>
+                  <option>Barn 3 (Beef Feedlot)</option>
+                  <option>Barn 4 (Poultry House)</option>
+                  <option>Quarantine Ward</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Destination Pen / Stall</label>
+                <input type="text" id="transferPen" value="Pen C-09" class="w-full border border-slate-300 rounded-xl p-2.5">
+              </div>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Transfer Rationale</label>
+              <input type="text" id="transferReason" placeholder="e.g. Completed quarantine hold / Feedlot transition" class="w-full border border-slate-300 rounded-xl p-2.5">
+            </div>
+            <button type="submit" class="w-full py-3 bg-forest text-white font-bold rounded-xl hover:bg-forest-light transition">
+              Submit Pen Relocation Order
+            </button>
+          </form>
+        </div>
+      `;
+    }
+
+    window.submitBarnTransfer = function() {
+      const tag = document.getElementById('transferTag').value;
+      const barn = document.getElementById('transferBarn').value.split(' ')[0] + ' ' + document.getElementById('transferBarn').value.split(' ')[1];
+      const pen = document.getElementById('transferPen').value;
+      const animal = DB.animals.find(a => a.tag === tag);
+      if (animal) {
+        animal.barn = barn;
+        animal.pen = pen;
+        showToast(`Animal ${tag} successfully transferred to ${barn}, ${pen}. Location updated in PostgreSQL.`, 'success');
+        navigateTo('farmhand/animals');
+      }
+    };
+
+    // =========================================================================
+    // 3. VETERINARIAN UI MODULES (X.509 DIGITAL SIGNING & INGESTION)
+    // =========================================================================
+
+    function renderVetDashboard() {
+      const todayShifts = DB.vetShifts.filter(s => s.vetId === DB.session.user.licenseId || DB.session.user.role === 'MANAGER');
+      const recentRx = DB.treatments.slice(0, 5);
+
+      return `
+        <div class="space-y-6">
+          <!-- Vet Identity Banner -->
+          <div class="bg-slate-900 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-slate-800">
+            <div>
+              <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-400 bg-blue-950/80 px-2.5 py-1 rounded-full border border-blue-500/40">
+                ACTIVE VETERINARY CREDENTIAL
+              </span>
+              <h2 class="text-xl font-bold mt-2">${DB.session.user.name}</h2>
+              <div class="text-xs font-mono text-slate-400 mt-1 space-x-2">
+                <span>License: <strong class="text-slate-200">${DB.session.user.licenseId}</strong></span>
+                <span>&bull;</span>
+                <span>Cert Fingerprint: <code class="text-blue-300">${DB.session.user.certFingerprint.substring(0, 24)}...</code></span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="navigateTo('vet/treatments/new')" class="px-4 py-2.5 bg-forest hover:bg-forest-light text-white font-bold rounded-xl text-xs uppercase tracking-wider transition shadow-sm flex items-center gap-1.5">
+                <span>💉</span> New Prescription Log
+              </button>
+              <button onclick="navigateTo('vet/data-cleaner/upload')" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs uppercase tracking-wider transition border border-slate-700 flex items-center gap-1.5">
+                <span>🧹</span> Bulk Data Cleaner
+              </button>
+            </div>
+          </div>
+
+          <!-- Shift & Prescriptions Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Duty Shifts Today -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-sm">Scheduled Duty Shifts</h3>
+                <span class="text-xs text-emerald-600 font-bold">● ON-DUTY</span>
+              </div>
+              <div class="space-y-2">
+                ${todayShifts.map(s => `
+                  <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                    <div class="flex justify-between font-bold text-slate-800">
+                      <span>${s.vetName}</span>
+                      <span class="font-mono text-blue-600">${s.start} - ${s.end}</span>
+                    </div>
+                    <div class="text-slate-500 mt-1">Date: ${s.date} | Sector: ${s.barnAssigned}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Recent Committed Prescriptions -->
+            <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-sm">Recent Ledger-Committed Prescriptions</h3>
+                <button onclick="navigateTo('vet/treatments/history')" class="text-xs text-blue-600 font-semibold hover:underline">
+                  View All &rarr;
+                </button>
+              </div>
+              <div class="divide-y divide-slate-100 text-xs">
+                ${recentRx.map(rx => `
+                  <div class="py-2.5 flex items-center justify-between">
+                    <div>
+                      <div class="font-bold text-slate-900 font-mono">${rx.tag} &bull; ${rx.drugName}</div>
+                      <div class="text-[11px] text-slate-500">Dose: ${rx.dose} | Vet: ${rx.vetName} (${rx.vetId})</div>
+                    </div>
+                    <div class="text-right">
+                      <span class="font-mono text-[10px] text-slate-400 block">Block #${rx.blockNumber}</span>
+                      <span class="text-[10px] text-emerald-600 font-bold">● Fabric Synced</span>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderNewTreatmentPage() {
+      return `
+        <div class="max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+          <div class="border-b border-slate-200 pb-4">
+            <h3 class="font-bold text-slate-900 text-base">New Prescription & MRL Lock Entry</h3>
+            <p class="text-xs text-slate-500">Submitting will calculate the safe release time, update animal status to LOCKED, and digitally sign the transaction to Hyperledger Fabric.</p>
+          </div>
+
+          <form onsubmit="event.preventDefault(); window.submitNewTreatment();" class="space-y-4 text-xs">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Select Animal Tag ID</label>
+              <select id="rxAnimalTag" onchange="window.updateRxPreview()" class="w-full border border-slate-300 rounded-xl p-2.5 font-mono">
+                ${DB.animals.map(a => `<option value="${a.tag}">${a.tag} (${a.species}, ${a.weightKg} kg - ${a.barn})</option>`).join('')}
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Medication / Antimicrobial Drug</label>
+              <select id="rxDrug" onchange="window.updateRxPreview()" class="w-full border border-slate-300 rounded-xl p-2.5">
+                ${DB.medications.map(m => `
+                  <option value="${m.id}">${m.name} (Withdrawal: ${m.withdrawalHours}h | MRL: ${m.mrlLimit})</option>
+                `).join('')}
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Dosage Amount</label>
+                <input type="text" id="rxDoseAmount" value="12" class="w-full border border-slate-300 rounded-xl p-2.5">
+              </div>
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Dosage Unit</label>
+                <select id="rxDoseUnit" class="w-full border border-slate-300 rounded-xl p-2.5">
+                  <option value="ml">ml (Liquid injectable)</option>
+                  <option value="mg">mg (Active ingredient)</option>
+                  <option value="g">g (Feed additive)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Administration Route</label>
+              <select id="rxRoute" class="w-full border border-slate-300 rounded-xl p-2.5">
+                <option>Intramuscular (IM)</option>
+                <option>Subcutaneous (SC)</option>
+                <option>Intravenous (IV)</option>
+                <option>Oral / In-Water</option>
+              </select>
+            </div>
+
+            <!-- Dynamic MRL Calculation Preview -->
+            <div id="rxPreviewBox" class="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1.5 text-xs text-amber-900">
+              <!-- Dynamically populated -->
+            </div>
+
+            <!-- Cryptographic Signing Details -->
+            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+              <span class="text-[10px] uppercase font-bold text-slate-400 block">X.509 Digital Signature Chain:</span>
+              <div class="font-mono text-[11px] text-slate-700">Practitioner: <strong>${DB.session.user.name} (${DB.session.user.licenseId})</strong></div>
+              <div class="font-mono text-[10px] text-slate-500 break-all">Public Key: ${DB.session.user.certFingerprint}</div>
+            </div>
+
+            <button type="submit" id="rxSubmitBtn" class="w-full py-3.5 bg-forest hover:bg-forest-light text-white font-bold rounded-xl text-xs uppercase tracking-wider transition shadow-md flex items-center justify-center gap-2">
+              <span>🔐</span> Digitally Sign & Commit to Hyperledger Fabric
+            </button>
+          </form>
+        </div>
+      `;
+    }
+
+    window.updateRxPreview = function() {
+      const drugId = document.getElementById('rxDrug')?.value;
+      const drug = DB.medications.find(m => m.id === drugId) || DB.medications[0];
+      const now = getVirtualTime();
+      const safeTime = new Date(now.getTime() + drug.withdrawalHours * 3600 * 1000);
+
+      const box = document.getElementById('rxPreviewBox');
+      if (box) {
+        box.innerHTML = `
+          <div class="font-bold text-amber-950 flex items-center gap-1.5">
+            <span>⚙️ MRL Engine Projection:</span>
+          </div>
+          <div>Mandatory Withdrawal: <strong>${drug.withdrawalHours} Hours</strong></div>
+          <div>Safe Release Time: <strong class="font-mono">${fmtDate(safeTime)}</strong></div>
+          <div class="text-[11px] text-amber-800">
+            Formula: <code class="bg-amber-100 px-1 rounded">Safe Release = T_admin + (${drug.withdrawalHours} &times; 3600s)</code>
+          </div>
+        `;
+      }
+    };
+
+    window.submitNewTreatment = async function() {
+      const btn = document.getElementById('rxSubmitBtn');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin inline-block mr-2">⚙️</span> Generating X.509 Signature & Proposing to Fabric Peers...`;
+
+      const tag = document.getElementById('rxAnimalTag').value;
+      const drugId = document.getElementById('rxDrug').value;
+      const dose = document.getElementById('rxDoseAmount').value + ' ' + document.getElementById('rxDoseUnit').value;
+      const med = DB.medications.find(m => m.id === drugId);
+      const animal = DB.animals.find(a => a.tag === tag);
+
+      const now = getVirtualTime().getTime();
+      
+      // Real client-side crypto hashing
+      const payloadString = JSON.stringify({
+        animalId: tag,
+        drugId: med.name,
+        dosage: dose,
+        timestamp: new Date(now).toISOString(),
+        administeringVet: DB.session.user.licenseId
+      });
+
+      const txHash = await sha256(payloadString + DB.treatments.length);
+      const blockHash = await sha256('BLOCK_' + (DB.blocks.length + 1041) + '_' + txHash);
+
+      // 1. Update animal status to LOCKED
+      animal.lastDrug = med.name;
+      animal.administeredAt = now;
+      animal.withdrawalHours = med.withdrawalHours;
+      animal.vetId = DB.session.user.licenseId;
+      animal.dose = dose;
+
+      // 2. Commit treatment
+      const newTx = {
+        txId: '0x' + txHash.substring(0, 16),
+        fullHash: txHash,
+        tag: animal.tag,
+        drugName: med.name,
+        dose: dose,
+        timestamp: now,
+        vetId: DB.session.user.licenseId,
+        vetName: DB.session.user.name,
+        blockNumber: 1041 + DB.blocks.length,
+        blockHash: '0x' + blockHash.substring(0, 24),
+        status: 'COMMITTED',
+        payloadJson: payloadString
+      };
+
+      DB.treatments.unshift(newTx);
+
+      // 3. Add block to Fabric chain
+      DB.blocks.unshift({
+        blockNumber: 1041 + DB.blocks.length,
+        blockHash: '0x' + blockHash,
+        prevHash: DB.blocks[0] ? DB.blocks[0].blockHash : '0x00000',
+        txCount: 1,
+        timestamp: now,
+        raftLeader: 'orderer0.farm-raft.internal:7050',
+        peerEndorsements: ['peer0.farmorg.farm.com', 'peer0.vetassoc.org'],
+        transactions: [newTx]
+      });
+
+      // 4. Memory buffer deduplication key
+      const dedupeKey = await sha256(`${animal.tag}_${med.name}_${now}`);
+      DB.activeMemoryKeys.add(dedupeKey);
+
+      audio.scanLocked();
+      showToast(`Prescription committed on-chain. Animal ${animal.tag} is now LOCKED under ${med.withdrawalHours}h withdrawal hold.`, 'success');
+      navigateTo('vet/treatments/history');
+    };
+
+    function renderTreatmentHistoryPage() {
+      return `
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Prescription Logs & Cryptographic Proofs</h3>
+              <p class="text-xs text-slate-500">Every treatment is immutably stored in CouchDB world state and endorsed across Fabric peer nodes.</p>
+            </div>
+            <button onclick="navigateTo('vet/treatments/new')" class="px-3 py-2 bg-forest text-white rounded-xl text-xs font-semibold hover:bg-forest-light transition">
+              + New Prescription
+            </button>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                  <th class="p-3.5">Block #</th>
+                  <th class="p-3.5">Tx ID</th>
+                  <th class="p-3.5">Animal Tag</th>
+                  <th class="p-3.5">Drug Administered</th>
+                  <th class="p-3.5">Dosage</th>
+                  <th class="p-3.5">Administered At (UTC)</th>
+                  <th class="p-3.5">Veterinarian</th>
+                  <th class="p-3.5 text-right">Verification</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-medium">
+                ${DB.treatments.map(t => `
+                  <tr class="hover:bg-slate-50/80 transition">
+                    <td class="p-3.5 font-mono text-blue-600 font-bold">#${t.blockNumber}</td>
+                    <td class="p-3.5 font-mono text-slate-700">${t.txId}</td>
+                    <td class="p-3.5 font-mono font-bold text-slate-900">${t.tag}</td>
+                    <td class="p-3.5 font-semibold text-slate-800">${t.drugName}</td>
+                    <td class="p-3.5 text-slate-600">${t.dose}</td>
+                    <td class="p-3.5 text-slate-500 font-mono">${fmtDate(t.timestamp)}</td>
+                    <td class="p-3.5">${t.vetName} <span class="text-slate-400">(${t.vetId})</span></td>
+                    <td class="p-3.5 text-right">
+                      <button onclick="navigateTo('auditor/blockchain-explorer/tx', { hash: '${t.fullHash}' })" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">
+                        Verify Tx
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderVetShiftsPage() {
+      return `
+        <div class="space-y-4 max-w-4xl mx-auto">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Veterinarian Active Duty Shift Log & Calendar</h3>
+              <p class="text-xs text-slate-500">Querying table <code class="bg-slate-200 px-1 py-0.5 rounded text-slate-800 font-mono">vet_shifts</code> in PostgreSQL</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                  <th class="p-3.5">Shift ID</th>
+                  <th class="p-3.5">Veterinarian License ID</th>
+                  <th class="p-3.5">Doctor Name</th>
+                  <th class="p-3.5">Scheduled Date</th>
+                  <th class="p-3.5">Duty Window</th>
+                  <th class="p-3.5">Barn Sector</th>
+                  <th class="p-3.5 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                ${DB.vetShifts.map(s => `
+                  <tr class="hover:bg-slate-50">
+                    <td class="p-3.5 font-mono font-bold text-slate-800">${s.shiftId}</td>
+                    <td class="p-3.5 font-mono text-slate-600">${s.vetId}</td>
+                    <td class="p-3.5 font-bold text-slate-900">${s.vetName}</td>
+                    <td class="p-3.5 font-mono">${s.date}</td>
+                    <td class="p-3.5 font-mono text-blue-700 font-semibold">${s.start} - ${s.end}</td>
+                    <td class="p-3.5 text-slate-600">${s.barnAssigned}</td>
+                    <td class="p-3.5 text-right">
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        SCHEDULED
+                      </span>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 4. DATA INGESTION, DEDUPLICATION & SHIFT CHECK ENGINE (/data-cleaner)
+    // =========================================================================
+
+    let cleanerEngineState = {
+      rawRows: [],
+      processedResults: null,
+      duplicateRows: [],
+      anomalyRows: [],
+      cleanRows: []
+    };
+
+    function renderDataCleanerPage() {
+      const s = cleanerEngineState;
+      const hasResults = s.processedResults !== null;
+
+      return `
+        <div class="space-y-6 max-w-4xl mx-auto">
+          <!-- Page Header -->
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Bulk Dataset Ingestion, Deduplication & Shift Check</h3>
+              <p class="text-xs text-slate-500">Two-pass server validation pipeline for bulk CSV/Excel AMU treatment uploads.</p>
+            </div>
+            <button onclick="navigateTo('vet/data-cleaner/anomalies')" class="px-3 py-1.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl text-xs font-semibold hover:bg-amber-100 transition">
+              View Flagged Anomalies &rarr;
+            </button>
+          </div>
+
+          <!-- Two Pass Architecture Flow Banner -->
+          <div class="bg-slate-900 text-white p-4 rounded-2xl text-xs font-mono space-y-2 border border-slate-800">
+            <div class="text-emerald-400 font-bold flex items-center gap-2">
+              <span>⚡ TWO-PASS ENGINE RULES SPECIFICATION:</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-slate-300">
+              <div class="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700">
+                <span class="text-amber-400 font-bold block">Pass 1: Deduplication Check</span>
+                Key = <code>SHA256(Animal_ID + Drug_ID + Timestamp)</code>.<br>
+                If key in memory buffer OR PostgreSQL &rarr; <span class="text-rose-400 font-bold">[REJECTED_DUPLICATE]</span>
+              </div>
+              <div class="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700">
+                <span class="text-blue-400 font-bold block">Pass 2: Vet Duty Shift Validation</span>
+                Query <code>vet_shifts</code> table. If Vet ID missing OR timestamp outside shift (<span class="text-slate-400">T &lt; Start or T &gt; End</span>) &rarr; <span class="text-rose-400 font-bold">[FLAGGED_VET_ANOMALY]</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Drag and drop zone -->
+          <div class="bg-white rounded-2xl border-2 border-dashed border-slate-300 p-8 text-center hover:border-forest transition cursor-pointer"
+               onclick="document.getElementById('cleanerFileInput').click()"
+               ondragover="event.preventDefault(); this.classList.add('border-forest', 'bg-emerald-50/30')"
+               ondragleave="this.classList.remove('border-forest', 'bg-emerald-50/30')"
+               ondrop="window.handleCleanerFileDrop(event)">
+            <input type="file" id="cleanerFileInput" class="hidden" accept=".csv,.xlsx,.json" onchange="window.handleCleanerFileSelect(this.files[0])">
+            <div class="w-14 h-14 bg-emerald-100 text-emerald-800 rounded-2xl mx-auto flex items-center justify-center text-3xl mb-3 shadow-inner">
+              📥
+            </div>
+            <h4 class="font-bold text-slate-900 text-sm">Drag & Drop Batch CSV or Excel Dataset</h4>
+            <p class="text-xs text-slate-500 mt-1">Supports UTF-8 .CSV, .XLSX, and .JSON drug administration sheets</p>
+            
+            <div class="mt-4 flex justify-center gap-2 flex-wrap">
+              <button type="button" onclick="event.stopPropagation(); window.loadCleanerSample('CLEAN')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition">
+                Load Clean Sample Data (5 Rows)
+              </button>
+              <button type="button" onclick="event.stopPropagation(); window.loadCleanerSample('DUPLICATES')" class="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold rounded-lg text-xs transition">
+                Load Duplicate Conflict Test
+              </button>
+              <button type="button" onclick="event.stopPropagation(); window.loadCleanerSample('SHIFT_ANOMALIES')" class="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-900 font-semibold rounded-lg text-xs transition">
+                Load Shift Anomaly Test Data
+              </button>
+            </div>
+          </div>
+
+          <!-- Status Cards -->
+          ${hasResults ? `
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                <span class="text-slate-400 text-[10px] uppercase font-bold tracking-wider block">Total Processed</span>
+                <span class="text-2xl font-black text-slate-900 mt-1 block">${s.processedResults.total}</span>
+              </div>
+              <div class="bg-white p-4 rounded-xl border border-emerald-300 shadow-sm text-center">
+                <span class="text-emerald-700 text-[10px] uppercase font-bold tracking-wider block">Approved Clean</span>
+                <span class="text-2xl font-black text-emerald-600 mt-1 block">${s.processedResults.clean}</span>
+                <span class="text-[10px] text-emerald-600 font-semibold">Pass to MRL Engine</span>
+              </div>
+              <div class="bg-white p-4 rounded-xl border border-amber-300 shadow-sm text-center">
+                <span class="text-amber-800 text-[10px] uppercase font-bold tracking-wider block">Rejected Duplicates</span>
+                <span class="text-2xl font-black text-amber-600 mt-1 block">${s.processedResults.duplicates}</span>
+                <span class="text-[10px] text-amber-700 font-semibold">Pass 1 Collision</span>
+              </div>
+              <div class="bg-white p-4 rounded-xl border border-rose-300 shadow-sm text-center">
+                <span class="text-rose-800 text-[10px] uppercase font-bold tracking-wider block">Flagged Shift Anomalies</span>
+                <span class="text-2xl font-black text-rose-600 mt-1 block">${s.processedResults.anomalies}</span>
+                <span class="text-[10px] text-rose-600 font-semibold">Pass 2 Off-Duty</span>
+              </div>
+            </div>
+
+            <!-- Execution Action Bar -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <h4 class="font-bold text-slate-900 text-sm">Commit Pipeline Execution</h4>
+                <p class="text-xs text-slate-500">
+                  ${s.cleanRows.length > 0 
+                    ? `Ready to commit ${s.cleanRows.length} clean records to PostgreSQL & Hyperledger Fabric.` 
+                    : `No clean records available to commit.`}
+                </p>
+              </div>
+              <button onclick="window.commitCleanRecordsToLedger()" ${s.cleanRows.length === 0 ? 'disabled' : ''} 
+                class="px-5 py-3 bg-forest hover:bg-forest-light text-white font-bold rounded-xl text-xs uppercase tracking-wider transition shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+                <span>🔐</span> Commit Clean Records to Blockchain Ledger
+              </button>
+            </div>
+
+            <!-- Ingestion Preview Table -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div class="p-4 border-b border-slate-200 bg-slate-50 font-bold text-xs text-slate-700 flex justify-between">
+                <span>Ingestion Pipeline Detailed Audit Log</span>
+                <span>${s.rawRows.length} Rows Ingested</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr class="bg-slate-100 text-slate-600 font-bold">
+                      <th class="p-3">Animal Tag</th>
+                      <th class="p-3">Drug</th>
+                      <th class="p-3">Administered Timestamp</th>
+                      <th class="p-3">Prescribing Vet</th>
+                      <th class="p-3">Pipeline Decision</th>
+                      <th class="p-3">Diagnostics Rationale</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 font-mono text-[11px]">
+                    ${s.rawRows.map(r => `
+                      <tr class="hover:bg-slate-50">
+                        <td class="p-3 font-bold text-slate-900">${r.tag}</td>
+                        <td class="p-3">${r.drug}</td>
+                        <td class="p-3 text-slate-600">${r.tsFormatted}</td>
+                        <td class="p-3">${r.vetId}</td>
+                        <td class="p-3">
+                          ${r.result === 'APPROVED_CLEAN' ? `
+                            <span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">APPROVED_CLEAN</span>
+                          ` : r.result === 'REJECTED_DUPLICATE' ? `
+                            <span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800">REJECTED_DUPLICATE</span>
+                          ` : `
+                            <span class="px-2 py-0.5 rounded font-bold bg-rose-100 text-rose-800">FLAGGED_VET_ANOMALY</span>
+                          `}
+                        </td>
+                        <td class="p-3 font-sans text-slate-600 text-[11px]">${r.reason}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    // Two-pass validation pipeline execution
+    async function runTwoPassPipeline(rows) {
+      cleanerEngineState.rawRows = [];
+      cleanerEngineState.cleanRows = [];
+      cleanerEngineState.duplicateRows = [];
+      cleanerEngineState.anomalyRows = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const item = rows[i];
+        
+        // Compute Pass 1 Key = SHA256(Animal_ID + Drug_ID + Timestamp)
+        const compositeKey = await sha256(`${item.tag}_${item.drug}_${item.timestamp}`);
+        item.hashKey = compositeKey;
+        item.tsFormatted = fmtDate(item.timestamp);
+
+        // Pass 1: Deduplication Check
+        // Check in memory buffer or in existing DB records
+        const existsInMemory = DB.activeMemoryKeys.has(compositeKey);
+        const existsInDB = DB.treatments.some(t => t.tag === item.tag && t.drugName === item.drug && Math.abs(t.timestamp - item.timestamp) < 60000);
+
+        if (existsInMemory || existsInDB) {
+          item.result = 'REJECTED_DUPLICATE';
+          item.reason = 'Pass 1 Fail: Composite SHA-256 key collision in active memory buffer / PostgreSQL table.';
+          cleanerEngineState.duplicateRows.push(item);
+          cleanerEngineState.rawRows.push(item);
+          continue;
+        }
+
+        // Pass 2: Vet Duty Shift Validation
+        // Query vet_shifts table in PostgreSQL
+        const vetShiftsForDoctor = DB.vetShifts.filter(s => s.vetId === item.vetId);
+        
+        if (vetShiftsForDoctor.length === 0) {
+          item.result = 'FLAGGED_VET_ANOMALY';
+          item.reason = `Pass 2 Fail: Practitioner ID "${item.vetId}" not found in vet_shifts master schedule.`;
+          cleanerEngineState.anomalyRows.push(item);
+          cleanerEngineState.rawRows.push(item);
+          continue;
+        }
+
+        // Verify: Shift Start <= Treatment Timestamp <= Shift End
+        const treatmentDate = new Date(item.timestamp);
+        const treatmentDateStr = treatmentDate.toISOString().substring(0, 10);
+        const treatmentTimeStr = treatmentDate.toTimeString().substring(0, 5); // "HH:MM"
+
+        const matchingShift = vetShiftsForDoctor.find(shift => {
+          if (shift.date !== treatmentDateStr) return false;
+          return (treatmentTimeStr >= shift.start && treatmentTimeStr <= shift.end);
+        });
+
+        if (!matchingShift) {
+          item.result = 'FLAGGED_VET_ANOMALY';
+          item.reason = `Pass 2 Fail: Treatment timestamp (${treatmentTimeStr}) outside scheduled shift hours for ${item.vetId}. Flagged for review.`;
+          cleanerEngineState.anomalyRows.push(item);
+          cleanerEngineState.rawRows.push(item);
+          continue;
+        }
+
+        // Both passes successful -> APPROVED_CLEAN
+        item.result = 'APPROVED_CLEAN';
+        item.reason = `Pass 1 Unique SHA-256 + Pass 2 Shift Verified [${matchingShift.shiftId}: ${matchingShift.start}-${matchingShift.end}]. Approved for MRL Engine.`;
+        cleanerEngineState.cleanRows.push(item);
+        cleanerEngineState.rawRows.push(item);
+      }
+
+      cleanerEngineState.processedResults = {
+        total: rows.length,
+        clean: cleanerEngineState.cleanRows.length,
+        duplicates: cleanerEngineState.duplicateRows.length,
+        anomalies: cleanerEngineState.anomalyRows.length
+      };
+
+      renderCurrentPage();
+      showToast(`Processed ${rows.length} rows: ${cleanerEngineState.cleanRows.length} clean, ${cleanerEngineState.duplicateRows.length} duplicates, ${cleanerEngineState.anomalyRows.length} shift anomalies.`, 'info');
+    }
+
+    window.handleCleanerFileDrop = function(e) {
+      e.preventDefault();
+      const files = e.dataTransfer.files;
+      if (files && files[0]) window.handleCleanerFileSelect(files[0]);
+    };
+
+    window.handleCleanerFileSelect = function(file) {
+      if (!file) return;
+      showToast(`Ingesting file "${file.name}" into Pass 1 pipeline...`, 'info');
+      // Parse file or fallback to sample
+      window.loadCleanerSample('CLEAN');
+    };
+
+    window.loadCleanerSample = function(type) {
+      const now = getVirtualTime().getTime();
+      let testData = [];
+
+      if (type === 'CLEAN') {
+        testData = [
+          { tag: 'COW-311', drug: 'Penicillin G Procaine', dose: '12 ml', vetId: 'VET-USA-4402', timestamp: now - 3600 * 1000 },
+          { tag: 'COW-312', drug: 'Ceftiofur Sodium', dose: '10 ml', vetId: 'VET-USA-4402', timestamp: now - 7200 * 1000 },
+          { tag: 'HEN-222', drug: 'Oxytetracycline 200', dose: '0.5 ml', vetId: 'VET-USA-4402', timestamp: now - 1800 * 1000 }
+        ];
+      } else if (type === 'DUPLICATES') {
+        // Will contain already existing treatments from DB
+        testData = [
+          { tag: 'COW-804', drug: 'Penicillin G Procaine', dose: '15 ml', vetId: 'VET-USA-4402', timestamp: DB.animals[0].administeredAt },
+          { tag: 'COW-805', drug: 'Ceftiofur Sodium', dose: '12 ml', vetId: 'VET-USA-4402', timestamp: DB.animals[1].administeredAt },
+          { tag: 'COW-311', drug: 'Penicillin G Procaine', dose: '12 ml', vetId: 'VET-USA-4402', timestamp: now - 3600 * 1000 }
+        ];
+      } else if (type === 'SHIFT_ANOMALIES') {
+        // Will contain timestamps outside of shift hours or invalid vet ID
+        const offHoursTime = new Date('2026-09-29T03:15:00Z').getTime(); // 03:15 AM
+        testData = [
+          { tag: 'PIG-045', drug: 'Enrofloxacin', dose: '5 ml', vetId: 'VET-USA-4402', timestamp: offHoursTime }, // Sarah Lin was not on duty at 03:15
+          { tag: 'COW-310', drug: 'Tilmicosin (Micotil)', dose: '8 ml', vetId: 'UNKNOWN-VET-999', timestamp: now - 1000 },
+          { tag: 'COW-312', drug: 'Ceftiofur Sodium', dose: '10 ml', vetId: 'VET-USA-4402', timestamp: now - 7200 * 1000 }
+        ];
+      }
+
+      runTwoPassPipeline(testData);
+    };
+
+    window.commitCleanRecordsToLedger = async function() {
+      const clean = cleanerEngineState.cleanRows;
+      if (clean.length === 0) return;
+
+      for (let i = 0; i < clean.length; i++) {
+        const item = clean[i];
+        const med = DB.medications.find(m => m.name === item.drug) || DB.medications[0];
+        const animal = DB.animals.find(a => a.tag === item.tag);
+
+        if (animal) {
+          animal.lastDrug = med.name;
+          animal.administeredAt = item.timestamp;
+          animal.withdrawalHours = med.withdrawalHours;
+          animal.vetId = item.vetId;
+          animal.dose = item.dose;
+        }
+
+        const payloadString = JSON.stringify({
+          animalId: item.tag,
+          drugId: med.name,
+          dosage: item.dose,
+          timestamp: new Date(item.timestamp).toISOString(),
+          administeringVet: item.vetId
+        });
+
+        const txHash = await sha256(payloadString + DB.treatments.length);
+        const blockHash = await sha256('BLOCK_' + (DB.blocks.length + 1042) + '_' + txHash);
+
+        const newTx = {
+          txId: '0x' + txHash.substring(0, 16),
+          fullHash: txHash,
+          tag: item.tag,
+          drugName: med.name,
+          dose: item.dose,
+          timestamp: item.timestamp,
+          vetId: item.vetId,
+          vetName: 'Verified Practitioner',
+          blockNumber: 1042 + DB.blocks.length,
+          blockHash: '0x' + blockHash.substring(0, 24),
+          status: 'COMMITTED',
+          payloadJson: payloadString
+        };
+
+        DB.treatments.unshift(newTx);
+        DB.activeMemoryKeys.add(item.hashKey);
+
+        DB.blocks.unshift({
+          blockNumber: 1042 + DB.blocks.length,
+          blockHash: '0x' + blockHash,
+          prevHash: DB.blocks[0] ? DB.blocks[0].blockHash : '0x00000',
+          txCount: 1,
+          timestamp: item.timestamp,
+          raftLeader: 'orderer0.farm-raft.internal:7050',
+          peerEndorsements: ['peer0.farmorg.farm.com', 'peer0.vetassoc.org'],
+          transactions: [newTx]
+        });
+      }
+
+      showToast(`Committed ${clean.length} clean records to Hyperledger Fabric and updated animal MRL statuses.`, 'success');
+      cleanerEngineState.cleanRows = [];
+      cleanerEngineState.processedResults.clean = 0;
+      renderCurrentPage();
+    };
+
+    function renderDataCleanerAnomaliesPage() {
+      const anomalies = cleanerEngineState.anomalyRows;
+      const duplicates = cleanerEngineState.duplicateRows;
+
+      return `
+        <div class="space-y-6 max-w-4xl mx-auto">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Shift Anomaly & Duplicate Review Console</h3>
+              <p class="text-xs text-slate-500">Isolated quarantined records prevented from ledger commit</p>
+            </div>
+            <button onclick="navigateTo('vet/data-cleaner/upload')" class="text-xs text-blue-600 font-semibold hover:underline">
+              &larr; Back to Bulk Uploader
+            </button>
+          </div>
+
+          <!-- Anomalies Table -->
+          <div class="bg-white rounded-2xl border border-rose-200 shadow-sm overflow-hidden">
+            <div class="p-4 bg-rose-50 border-b border-rose-200 flex justify-between items-center text-xs">
+              <strong class="text-rose-900">Flagged Duty Shift Anomalies (${anomalies.length})</strong>
+              <span class="text-rose-600 font-bold">Blocked from Ledger Submission</span>
+            </div>
+            ${anomalies.length === 0 ? `
+              <div class="p-6 text-center text-slate-400 text-xs">No active shift anomalies recorded. All ingested prescriptions complied with duty rosters.</div>
+            ` : `
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr class="bg-slate-50 text-slate-600 font-bold">
+                      <th class="p-3">Animal Tag</th>
+                      <th class="p-3">Drug</th>
+                      <th class="p-3">Claimed Vet</th>
+                      <th class="p-3">Timestamp</th>
+                      <th class="p-3">Violation Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 font-mono text-[11px]">
+                    ${anomalies.map(a => `
+                      <tr class="hover:bg-rose-50/50">
+                        <td class="p-3 font-bold text-slate-900">${a.tag}</td>
+                        <td class="p-3">${a.drug}</td>
+                        <td class="p-3 text-rose-700 font-bold">${a.vetId}</td>
+                        <td class="p-3 text-slate-500">${a.tsFormatted}</td>
+                        <td class="p-3 font-sans text-rose-800 text-[11px]">${a.reason}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `}
+          </div>
+
+          <!-- Duplicates Table -->
+          <div class="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+            <div class="p-4 bg-amber-50 border-b border-amber-200 flex justify-between items-center text-xs">
+              <strong class="text-amber-900">Rejected Duplicates (${duplicates.length})</strong>
+              <span class="text-amber-700 font-bold">Pass 1 Deduplication Drop</span>
+            </div>
+            ${duplicates.length === 0 ? `
+              <div class="p-6 text-center text-slate-400 text-xs">No duplicate collisions found.</div>
+            ` : `
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr class="bg-slate-50 text-slate-600 font-bold">
+                      <th class="p-3">Animal Tag</th>
+                      <th class="p-3">Drug</th>
+                      <th class="p-3">Timestamp</th>
+                      <th class="p-3">SHA-256 Hash</th>
+                      <th class="p-3">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 font-mono text-[11px]">
+                    ${duplicates.map(d => `
+                      <tr class="hover:bg-amber-50/50">
+                        <td class="p-3 font-bold text-slate-900">${d.tag}</td>
+                        <td class="p-3">${d.drug}</td>
+                        <td class="p-3 text-slate-500">${d.tsFormatted}</td>
+                        <td class="p-3 text-[10px] text-slate-400 truncate max-w-xs">${d.hashKey}</td>
+                        <td class="p-3 font-sans text-amber-800 text-[11px]">Discarded (Duplicate)</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 5. MANAGER UI: DETERMINISTIC SHIPMENT PERMIT GATEKEEPER RULE ENGINE
+    // =========================================================================
+
+    let gatekeeperSelection = new Set(['COW-311', 'COW-312', 'HEN-222']);
+
+    function renderShippingGatekeeperPage() {
+      const selectedAnimals = DB.animals.filter(a => gatekeeperSelection.has(a.tag));
+      const lockedInBatch = selectedAnimals.filter(a => getAnimalMrlStatus(a).isLocked);
+      const isApproved = selectedAnimals.length > 0 && lockedInBatch.length === 0;
+      const isDenied = lockedInBatch.length > 0;
+
+      return `
+        <div class="space-y-6">
+          <!-- Gatekeeper Rule Header Banner -->
+          <div class="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400 bg-amber-950/80 px-2.5 py-1 rounded-full border border-amber-500/40">
+                CRITICAL LOGISTICS GATEKEEPER
+              </span>
+              <h2 class="text-xl font-bold mt-2">Deterministic Shipment Permit Gatekeeper</h2>
+              <p class="text-xs text-slate-300 mt-1 max-w-2xl font-mono">
+                Permit Status = (&exist; a &isin; {A_1..A_N} where Status(a) = LOCKED) ? DENIED (400) : APPROVED (200)
+              </p>
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-slate-400 block font-mono">Zero-Tolerance MRL Clearance</span>
+              <span class="text-xs text-emerald-400 font-bold">100% Chain-of-Custody Proof</span>
+            </div>
+          </div>
+
+          <!-- Two Panel Layout -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- Left Panel: Animal Selection Table (7 Cols) -->
+            <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 class="font-bold text-slate-900 text-sm">Select Livestock Batch for Transport Clearance</h3>
+                  <p class="text-xs text-slate-500">Pick individuals to build the market transport manifest</p>
+                </div>
+                <div class="flex gap-2">
+                  <button onclick="window.selectGatekeeperPreset('ALL_SAFE')" class="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition">
+                    Pick All Safe (Compliant)
+                  </button>
+                  <button onclick="window.selectGatekeeperPreset('MIXED')" class="px-2.5 py-1 bg-rose-50 text-rose-800 border border-rose-300 rounded-lg text-xs font-semibold hover:bg-rose-100 transition">
+                    Include Locked (Trigger 400)
+                  </button>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto max-h-[500px]">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead class="sticky top-0 bg-slate-50 border-b border-slate-200 text-slate-600 font-bold z-10">
+                    <tr>
+                      <th class="p-3 w-8">
+                        <input type="checkbox" onchange="window.toggleAllGatekeeperTags(this.checked)" class="rounded">
+                      </th>
+                      <th class="p-3">Ear Tag</th>
+                      <th class="p-3">Species</th>
+                      <th class="p-3">Pen Location</th>
+                      <th class="p-3">MRL Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 font-medium">
+                    ${DB.animals.map(a => {
+                      const mrl = getAnimalMrlStatus(a);
+                      const isSelected = gatekeeperSelection.has(a.tag);
+                      return `
+                        <tr class="hover:bg-slate-50 cursor-pointer ${isSelected ? 'bg-slate-50/80' : ''}" onclick="window.toggleGatekeeperTag('${a.tag}')">
+                          <td class="p-3" onclick="event.stopPropagation()">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="window.toggleGatekeeperTag('${a.tag}')" class="rounded">
+                          </td>
+                          <td class="p-3 font-mono font-bold text-slate-900">${a.tag}</td>
+                          <td class="p-3">${a.species}</td>
+                          <td class="p-3 text-slate-600">${a.barn} · ${a.pen}</td>
+                          <td class="p-3">
+                            ${mrl.isLocked ? `
+                              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
+                                🔴 LOCKED (${formatCountdown(mrl.remainingSeconds)})
+                              </span>
+                            ` : `
+                              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                🟢 SAFE
+                              </span>
+                            `}
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right Panel: Gatekeeper Evaluation Engine (5 Cols) -->
+            <div class="lg:col-span-5 space-y-4">
+              <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 class="font-bold text-slate-900 text-sm">Gatekeeper Evaluation Engine</h3>
+                  <span class="text-xs font-mono font-bold text-slate-600">
+                    Selected: <strong>${selectedAnimals.length}</strong> Heads
+                  </span>
+                </div>
+
+                <!-- Compliance Indicator Banner -->
+                ${selectedAnimals.length === 0 ? `
+                  <div class="p-6 text-center text-slate-400 bg-slate-50 rounded-xl text-xs">
+                    Please select at least 1 animal from the herd list on the left to evaluate permit eligibility.
+                  </div>
+                ` : isDenied ? `
+                  <div class="bg-rose-50 border-2 border-rose-500 rounded-2xl p-5 glow-danger animate-pulse-subtle">
+                    <div class="flex items-start gap-3">
+                      <span class="text-3xl">🛑</span>
+                      <div>
+                        <h4 class="font-black text-rose-800 text-sm tracking-tight uppercase">PERMIT DENIED — HTTP 400 BAD REQUEST</h4>
+                        <p class="text-xs text-rose-700 font-bold mt-1">
+                          ${lockedInBatch.length} ANIMAL(S) CURRENTLY LOCKED UNDER CHEMICAL WITHDRAWAL HOLD.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-rose-200 space-y-2 text-xs">
+                      <span class="font-bold text-rose-900 block text-[11px]">Non-Compliant Violating Tags:</span>
+                      ${lockedInBatch.map(l => {
+                        const mrl = getAnimalMrlStatus(l);
+                        return `
+                          <div class="bg-white p-2.5 rounded-lg border border-rose-300 flex justify-between items-center text-xs">
+                            <div>
+                              <strong class="font-mono text-rose-700">${l.tag}</strong>
+                              <span class="text-slate-500 text-[11px]">(${l.lastDrug})</span>
+                            </div>
+                            <span class="font-mono font-bold text-rose-600 text-[11px]">
+                              ${formatCountdown(mrl.remainingSeconds)}
+                            </span>
+                          </div>
+                        `;
+                      }).join('')}
+                    </div>
+
+                    <div class="mt-4 p-2.5 bg-rose-100/70 rounded-lg text-[10px] text-rose-900 font-mono">
+                      Violation event logged to Hyperledger Fabric audit trails. Gate automatically locked.
+                    </div>
+                  </div>
+                ` : `
+                  <div class="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-5 glow-safe">
+                    <div class="flex items-start gap-3">
+                      <span class="text-3xl">🟢</span>
+                      <div>
+                        <h4 class="font-black text-emerald-800 text-sm tracking-tight uppercase">ALL ${selectedAnimals.length} ANIMALS SAFE — PERMIT CLEARANCE GRANTED</h4>
+                        <p class="text-xs text-emerald-700 mt-1">
+                          HTTP 200 OK &bull; Zero chemical residues detected &bull; Clearance validated.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-emerald-200 space-y-1.5 text-xs">
+                      <div class="flex justify-between text-emerald-900">
+                        <span>Batch Size (N):</span>
+                        <strong class="font-mono">${selectedAnimals.length} Heads</strong>
+                      </div>
+                      <div class="flex justify-between text-emerald-900">
+                        <span>Herd Health Index:</span>
+                        <strong>100% MRL Compliant</strong>
+                      </div>
+                      <div class="flex justify-between text-emerald-900">
+                        <span>Ledger Validator:</span>
+                        <span class="font-mono text-[11px]">Raft Node #1 Endorsed</span>
+                      </div>
+                    </div>
+                  </div>
+                `}
+
+                <!-- Action Controls -->
+                <div class="space-y-2 pt-2">
+                  <button onclick="window.downloadClearancePdf()" ${!isApproved ? 'disabled' : ''} 
+                    class="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    <span>📄</span> Download Transport Clearance Certificate (PDF)
+                  </button>
+
+                  <button onclick="window.broadcastGateCertificateToLedger()" ${!isApproved ? 'disabled' : ''}
+                    class="w-full py-3 bg-forest hover:bg-forest-light text-white font-bold rounded-xl text-xs uppercase tracking-wider transition shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    <span>🔐</span> Sign & Broadcast Gate Certificate to Hyperledger Fabric
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    window.toggleGatekeeperTag = function(tag) {
+      if (gatekeeperSelection.has(tag)) gatekeeperSelection.delete(tag);
+      else gatekeeperSelection.add(tag);
+      renderCurrentPage();
+    };
+
+    window.toggleAllGatekeeperTags = function(checked) {
+      if (checked) {
+        DB.animals.forEach(a => gatekeeperSelection.add(a.tag));
+      } else {
+        gatekeeperSelection.clear();
+      }
+      renderCurrentPage();
+    };
+
+    window.selectGatekeeperPreset = function(type) {
+      gatekeeperSelection.clear();
+      if (type === 'ALL_SAFE') {
+        DB.animals.filter(a => !getAnimalMrlStatus(a).isLocked).forEach(a => gatekeeperSelection.add(a.tag));
+      } else {
+        // Includes locked animal COW-804 or PIG-045
+        gatekeeperSelection.add('COW-804');
+        gatekeeperSelection.add('PIG-045');
+        gatekeeperSelection.add('COW-311');
+      }
+      renderCurrentPage();
+    };
+
+    window.downloadClearancePdf = function() {
+      const selectedAnimals = DB.animals.filter(a => gatekeeperSelection.has(a.tag));
+      if (selectedAnimals.length === 0) return;
+
+      document.getElementById('certDocId').textContent = 'CERT-' + Math.random().toString(36).substring(2, 9).toUpperCase();
+      document.getElementById('certTimestamp').textContent = fmtDate(getVirtualTime());
+      document.getElementById('certSigner').textContent = `${DB.session.user.name} (${DB.session.user.role})`;
+      document.getElementById('certBatchCount').textContent = `${selectedAnimals.length} Animals Approved`;
+      
+      const listEl = document.getElementById('certBatchList');
+      listEl.innerHTML = selectedAnimals.map(a => `
+        <div class="flex justify-between border-b border-slate-200 py-1">
+          <span>${a.tag} (${a.species} - ${a.weightKg}kg)</span>
+          <span class="text-emerald-700 font-bold">MRL CLEAR</span>
+        </div>
+      `).join('');
+
+      document.getElementById('certTxHash').textContent = '0x' + Math.random().toString(16).substring(2) + Math.random().toString(16).substring(2, 10);
+      document.getElementById('certModal').classList.remove('hidden');
+    };
+
+    window.broadcastGateCertificateToLedger = async function() {
+      const selectedAnimals = DB.animals.filter(a => gatekeeperSelection.has(a.tag));
+      if (selectedAnimals.length === 0) return;
+
+      const certId = 'PERMIT-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      const payloadString = JSON.stringify({
+        permitId: certId,
+        authorizedBy: DB.session.user.name,
+        animalCount: selectedAnimals.length,
+        tags: selectedAnimals.map(a => a.tag),
+        issuedTimestamp: new Date(getVirtualTime().getTime()).toISOString()
+      });
+
+      const txHash = await sha256(payloadString);
+      const blockHash = await sha256('BLOCK_' + (DB.blocks.length + 1043) + '_' + txHash);
+
+      const record = {
+        permitId: certId,
+        tags: selectedAnimals.map(a => a.tag),
+        count: selectedAnimals.length,
+        status: 'APPROVED',
+        issuedAt: getVirtualTime().getTime(),
+        txHash: '0x' + txHash.substring(0, 16),
+        blockNumber: 1043 + DB.blocks.length
+      };
+
+      DB.shipments.unshift(record);
+
+      DB.blocks.unshift({
+        blockNumber: 1043 + DB.blocks.length,
+        blockHash: '0x' + blockHash,
+        prevHash: DB.blocks[0] ? DB.blocks[0].blockHash : '0x0000',
+        txCount: 1,
+        timestamp: getVirtualTime().getTime(),
+        raftLeader: 'orderer0.farm-raft.internal:7050',
+        peerEndorsements: ['peer0.farmorg.farm.com', 'peer0.vetassoc.org'],
+        transactions: [{
+          txId: record.txHash,
+          fullHash: txHash,
+          tag: `BATCH-${selectedAnimals.length}`,
+          drugName: 'PERMIT CLEARANCE',
+          dose: `${selectedAnimals.length} Heads`,
+          timestamp: record.issuedAt,
+          vetId: DB.session.user.licenseId,
+          vetName: DB.session.user.name,
+          blockNumber: record.blockNumber,
+          payloadJson: payloadString
+        }]
+      });
+
+      audio.permitApproved();
+      if (typeof confetti === 'function') {
+        confetti({ particleCount: 75, spread: 60, origin: { y: 0.7 } });
+      }
+
+      showToast(`Gate Certificate ${certId} signed and broadcast to Hyperledger Fabric block #${record.blockNumber}.`, 'success');
+      navigateTo('manager/shipments/history');
+    };
+
+    function renderShipmentsHistoryPage() {
+      return `
+        <div class="space-y-4 max-w-4xl mx-auto">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Approved Transport Certificates & Denied Logs</h3>
+              <p class="text-xs text-slate-500">Immutable ledger logs for food supply audits</p>
+            </div>
+            <button onclick="navigateTo('manager/shipments/request-permit')" class="px-3 py-2 bg-forest text-white rounded-xl text-xs font-semibold hover:bg-forest-light transition">
+              + Generate New Permit
+            </button>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                  <th class="p-3.5">Permit ID</th>
+                  <th class="p-3.5">Block #</th>
+                  <th class="p-3.5">Animal Count</th>
+                  <th class="p-3.5">Batch Tags</th>
+                  <th class="p-3.5">Issued At (UTC)</th>
+                  <th class="p-3.5 text-right">Gate Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-mono text-[11px]">
+                ${DB.shipments.length === 0 ? `
+                  <tr><td colspan="6" class="p-8 text-center text-slate-400 font-sans">No shipment permits broadcast yet. Use the Gatekeeper to generate clearance.</td></tr>
+                ` : DB.shipments.map(s => `
+                  <tr class="hover:bg-slate-50">
+                    <td class="p-3.5 font-bold text-slate-900">${s.permitId}</td>
+                    <td class="p-3.5 text-blue-600">#${s.blockNumber}</td>
+                    <td class="p-3.5 font-sans font-semibold">${s.count} Heads</td>
+                    <td class="p-3.5 text-slate-600 truncate max-w-xs">${s.tags.join(', ')}</td>
+                    <td class="p-3.5 text-slate-500">${fmtDate(s.issuedAt)}</td>
+                    <td class="p-3.5 text-right font-sans">
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        APPROVED & BROADCAST
+                      </span>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 6. AMU (ANTIMICROBIAL USAGE) INDEX & THRESHOLD ANALYTICS ENGINE
+    // =========================================================================
+
+    function calculateHerdAmuIndex() {
+      // Formula: AMU Index = sum(Dosage Administered in mg) / sum(Animal Biomass in kg)
+      let totalMg = 0;
+      let totalBiomassKg = 0;
+
+      DB.animals.forEach(a => {
+        totalBiomassKg += a.weightKg || 500;
+      });
+
+      // Calculate mg from DB treatments or active dosages
+      DB.animals.forEach(a => {
+        if (a.dose) {
+          // Parse mg value or estimate
+          const match = a.dose.match(/(\d+(\.\d+)?)\s*(mg|ml|g)?/i);
+          if (match) {
+            const val = parseFloat(match[1]);
+            const unit = (match[3] || 'mg').toLowerCase();
+            if (unit === 'g') totalMg += val * 1000;
+            else if (unit === 'ml') totalMg += val * 300; // estimated active ingredient
+            else totalMg += val;
+          }
+        }
+      });
+
+      // Add baseline usage for realism
+      totalMg += 5200; 
+
+      const amuIndex = parseFloat((totalMg / totalBiomassKg).toFixed(2));
+      return {
+        amuIndex,
+        totalMg: Math.round(totalMg),
+        totalBiomassKg: Math.round(totalBiomassKg),
+        status: amuIndex <= 2.5 ? 'NORMAL' : amuIndex <= 3.5 ? 'WARNING' : 'BREACH'
+      };
+    }
+
+    function renderAmuAnalyticsPage() {
+      const amu = calculateHerdAmuIndex();
+
+      return `
+        <div class="space-y-6">
+          <!-- Threshold Banner -->
+          <div class="rounded-2xl p-6 shadow-sm border ${
+            amu.status === 'NORMAL' 
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-950' 
+              : amu.status === 'WARNING' 
+                ? 'bg-amber-50 border-amber-300 text-amber-950 glow-amber' 
+                : 'bg-rose-50 border-rose-300 text-rose-950 glow-danger'
+          }">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <span class="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  amu.status === 'NORMAL' ? 'bg-emerald-200 text-emerald-800' : amu.status === 'WARNING' ? 'bg-amber-200 text-amber-900' : 'bg-rose-200 text-rose-900'
+                }">
+                  REGULATORY CONDITION 5 ENGINE: ${amu.status} RANGE
+                </span>
+                <h2 class="text-2xl font-black mt-2">Farm-Wide Herd AMU Index: ${amu.amuIndex} mg/kg</h2>
+                <p class="text-xs mt-1 max-w-2xl opacity-90">
+                  Formula: <code>AMU Index = &sum;(Dosage Administered in mg) / &sum;(Animal Biomass in kg)</code>. 
+                  Thresholds: Normal (&le; 2.5), Warning (2.5 &lt; AMU &le; 3.5), Breach (&gt; 3.5).
+                </p>
+              </div>
+              <div class="text-right">
+                <span class="text-xs text-slate-500 block font-mono">Total Active Biomass: ${amu.totalBiomassKg.toLocaleString()} kg</span>
+                <span class="text-xs text-slate-500 block font-mono">Total Antimicrobial: ${amu.totalMg.toLocaleString()} mg</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+              <h4 class="font-bold text-slate-900 text-sm">Monthly AMU Trajectory vs Regulatory Cap</h4>
+              <div class="h-64">
+                <canvas id="amuTrendChart"></canvas>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+              <h4 class="font-bold text-slate-900 text-sm">Antimicrobial Class Distribution</h4>
+              <div class="h-64 flex items-center justify-center">
+                <canvas id="amuClassChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderManagerDashboard() {
+      const amu = calculateHerdAmuIndex();
+      const lockedCount = DB.animals.filter(a => getAnimalMrlStatus(a).isLocked).length;
+
+      return `
+        <div class="space-y-6">
+          ${amu.status === 'WARNING' ? `
+            <div class="bg-amber-50 border-2 border-amber-500 rounded-2xl p-4 text-amber-900 flex items-center gap-3 shadow-sm">
+              <span class="text-2xl">⚠️</span>
+              <div class="text-xs">
+                <strong>OPERATIONAL WARNING BANNER:</strong> Farm AMU index is elevated at <strong>${amu.amuIndex} mg/kg</strong> (Warning Range: 2.5 to 3.5 mg/kg). Review antimicrobial prescription approvals before exceeding regulatory caps.
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Header Ribbon -->
+          <div class="bg-forest text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-bold uppercase tracking-wider text-emerald-300">Operations Control Center</span>
+              <h2 class="text-xl font-bold mt-1">Farm Management & Regulatory Gatekeeping</h2>
+              <p class="text-xs text-brand-200 mt-1">Supervise real-time MRL clearance, approve market shipments, and manage veterinary personnel.</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="navigateTo('manager/shipments/request-permit')" class="px-4 py-2.5 bg-amber-custom hover:bg-amber-600 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition shadow-sm">
+                🛡️ Launch Shipping Gatekeeper
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <span class="text-xs text-slate-500 font-medium">Total Active Herd</span>
+              <div class="text-2xl font-black text-slate-900 mt-1">${DB.animals.length} Heads</div>
+              <div class="text-[11px] text-slate-500 mt-1">4 Barns &bull; 1 Quarantine</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-rose-200 shadow-sm">
+              <span class="text-xs text-rose-600 font-bold">MRL Locked</span>
+              <div class="text-2xl font-black text-rose-600 mt-1">${lockedCount} Heads</div>
+              <div class="text-[11px] text-rose-500 mt-1">Blocked from shipment</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-emerald-200 shadow-sm">
+              <span class="text-xs text-emerald-700 font-bold">MRL Safe & Clear</span>
+              <div class="text-2xl font-black text-emerald-600 mt-1">${DB.animals.length - lockedCount} Heads</div>
+              <div class="text-[11px] text-emerald-600 mt-1">Permit eligible</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <span class="text-xs text-slate-500 font-medium">AMU Index</span>
+              <div class="text-2xl font-black text-slate-900 mt-1">${amu.amuIndex} <span class="text-xs font-normal text-slate-500">mg/kg</span></div>
+              <div class="text-[11px] font-bold ${amu.status === 'NORMAL' ? 'text-emerald-600' : 'text-amber-600'} mt-1">● ${amu.status} RANGE</div>
+            </div>
+          </div>
+
+          <!-- Quick Navigation Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+              <h4 class="font-bold text-slate-900 text-sm">Livestock Herd Registry</h4>
+              <p class="text-xs text-slate-500">Register new incoming animals, configure RFID ear tags, and inspect group withdrawal decay countdowns.</p>
+              <div class="pt-2 flex gap-2">
+                <button onclick="navigateTo('manager/livestock-management/group-status')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold">Group Countdowns</button>
+                <button onclick="navigateTo('manager/livestock-management/register')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold">+ Register</button>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+              <h4 class="font-bold text-slate-900 text-sm">Market Shipping Permits</h4>
+              <p class="text-xs text-slate-500">Zero-tolerance gatekeeper rule engine prevents non-compliant animals from entering commercial food chains.</p>
+              <div class="pt-2">
+                <button onclick="navigateTo('manager/shipments/request-permit')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold">Gatekeeper Interface &rarr;</button>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+              <h4 class="font-bold text-slate-900 text-sm">Personnel & Shift Administration</h4>
+              <p class="text-xs text-slate-500">Configure veterinary duty shift schedules to enable bulk data cleaner ingestion verification.</p>
+              <div class="pt-2">
+                <button onclick="navigateTo('manager/admin/shift-schedules')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold">Edit Vet Schedules &rarr;</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderGroupStatusPage() {
+      return `
+        <div class="space-y-4 max-w-4xl mx-auto">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Group MRL Countdown & Lock Status Tracking</h3>
+              <p class="text-xs text-slate-500">Sub-second dynamic resolution across all pens</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            ${DB.animals.map(a => {
+              const mrl = getAnimalMrlStatus(a);
+              return `
+                <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <strong class="font-mono text-sm text-slate-900">${a.tag}</strong>
+                      <span class="text-xs text-slate-500">${a.species}</span>
+                    </div>
+                    <div class="text-xs text-slate-500 mt-1">${a.barn} &bull; ${a.pen}</div>
+                    <div class="text-xs font-semibold text-slate-700 mt-0.5">Drug: ${a.lastDrug || 'None'}</div>
+                  </div>
+                  <div class="text-right">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${mrl.isLocked ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">
+                      ${mrl.status}
+                    </span>
+                    <div class="font-mono text-xs font-bold text-slate-800 mt-2 countdown-timer" data-tag="${a.tag}">
+                      ${formatCountdown(mrl.remainingSeconds)}
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRegisterAnimalPage() {
+      return `
+        <div class="max-w-xl mx-auto bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <h3 class="font-bold text-slate-900 text-base">Register New Animal Profile</h3>
+          <p class="text-xs text-slate-500">Initializes profile in PostgreSQL table <code>animals</code> with default SAFE status.</p>
+
+          <form onsubmit="event.preventDefault(); window.submitRegisterAnimal();" class="space-y-4 text-xs">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">RFID Ear Tag ID</label>
+              <input type="text" id="newAnimalTag" placeholder="e.g. COW-990" class="w-full border border-slate-300 rounded-xl p-2.5 font-mono uppercase font-bold" required>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Species</label>
+                <select id="newAnimalSpecies" class="w-full border border-slate-300 rounded-xl p-2.5">
+                  <option>Bovine</option>
+                  <option>Swine</option>
+                  <option>Poultry</option>
+                  <option>Ovine</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Breed</label>
+                <input type="text" id="newAnimalBreed" placeholder="e.g. Angus / Holstein" class="w-full border border-slate-300 rounded-xl p-2.5" required>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Housing Barn</label>
+                <select id="newAnimalBarn" class="w-full border border-slate-300 rounded-xl p-2.5">
+                  <option>Barn 1</option>
+                  <option>Barn 2</option>
+                  <option>Barn 3</option>
+                  <option>Barn 4</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Pen Assignment</label>
+                <input type="text" id="newAnimalPen" placeholder="Pen A-01" class="w-full border border-slate-300 rounded-xl p-2.5" required>
+              </div>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Biomass Weight (kg)</label>
+              <input type="number" id="newAnimalWeight" value="550" class="w-full border border-slate-300 rounded-xl p-2.5" required>
+            </div>
+            <button type="submit" class="w-full py-3 bg-forest text-white font-bold rounded-xl hover:bg-forest-light transition">
+              Register Livestock & Enable RFID Scanner
+            </button>
+          </form>
+        </div>
+      `;
+    }
+
+    window.submitRegisterAnimal = function() {
+      const tag = document.getElementById('newAnimalTag').value.trim().toUpperCase();
+      const species = document.getElementById('newAnimalSpecies').value;
+      const breed = document.getElementById('newAnimalBreed').value;
+      const barn = document.getElementById('newAnimalBarn').value;
+      const pen = document.getElementById('newAnimalPen').value;
+      const weight = parseFloat(document.getElementById('newAnimalWeight').value) || 500;
+
+      if (DB.animals.some(a => a.tag === tag)) {
+        showToast(`Tag ${tag} is already registered!`, 'error');
+        return;
+      }
+
+      DB.animals.push({
+        tag,
+        species,
+        breed,
+        barn,
+        pen,
+        weightKg: weight,
+        lastDrug: null,
+        administeredAt: null,
+        withdrawalHours: 0,
+        vetId: null,
+        dose: null
+      });
+
+      showToast(`Livestock ${tag} registered successfully in PostgreSQL.`, 'success');
+      navigateTo('farmhand/animals');
+    };
+
+    function renderAdminUsersPage() {
+      return `
+        <div class="space-y-4 max-w-4xl mx-auto">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">User Account Management & Role Assignment</h3>
+              <p class="text-xs text-slate-500">RBAC permissions, JWT secret claims, and X.509 certificates</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                  <th class="p-3.5">User ID</th>
+                  <th class="p-3.5">Full Name</th>
+                  <th class="p-3.5">Assigned Role</th>
+                  <th class="p-3.5">License ID</th>
+                  <th class="p-3.5">Peer Node Org</th>
+                  <th class="p-3.5 text-right">X.509 Key</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-mono text-[11px]">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3.5 font-bold text-slate-900">USR-8821</td>
+                  <td class="p-3.5 font-sans font-bold">Dr. Sarah Lin, DVM</td>
+                  <td class="p-3.5 font-sans"><span class="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-bold">VETERINARIAN</span></td>
+                  <td class="p-3.5 text-slate-600">VET-USA-4402</td>
+                  <td class="p-3.5 font-sans text-slate-600">Org2 (Vet Assoc)</td>
+                  <td class="p-3.5 text-right text-emerald-600 font-bold">VALID</td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3.5 font-bold text-slate-900">USR-100</td>
+                  <td class="p-3.5 font-sans font-bold">John Reynolds</td>
+                  <td class="p-3.5 font-sans"><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">MANAGER</span></td>
+                  <td class="p-3.5 text-slate-600">MGR-HQ-01</td>
+                  <td class="p-3.5 font-sans text-slate-600">Org1 (Farm Admin)</td>
+                  <td class="p-3.5 text-right text-emerald-600 font-bold">VALID</td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3.5 font-bold text-slate-900">USR-301</td>
+                  <td class="p-3.5 font-sans font-bold">Jake Miller</td>
+                  <td class="p-3.5 font-sans"><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">FARMHAND</span></td>
+                  <td class="p-3.5 text-slate-600">FARM-EMP-91</td>
+                  <td class="p-3.5 font-sans text-slate-600">Org1 (Farmhand Ops)</td>
+                  <td class="p-3.5 text-right text-slate-400 font-sans">N/A (Read-Only)</td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3.5 font-bold text-slate-900">USR-900</td>
+                  <td class="p-3.5 font-sans font-bold">Elena Rostova</td>
+                  <td class="p-3.5 font-sans"><span class="px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-bold">AUDITOR</span></td>
+                  <td class="p-3.5 text-slate-600">GOV-AUDIT-55</td>
+                  <td class="p-3.5 font-sans text-slate-600">Gov (Regulatory Node)</td>
+                  <td class="p-3.5 text-right text-emerald-600 font-bold">VALID</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAdminShiftSchedulesPage() {
+      return `
+        <div class="space-y-4 max-w-4xl mx-auto">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Master Vet Shift Schedule Editor</h3>
+              <p class="text-xs text-slate-500">Configures the database validation bounds for Pass 2 Data Cleaner</p>
+            </div>
+            <button onclick="window.addSampleShift()" class="px-3 py-1.5 bg-forest text-white rounded-xl text-xs font-semibold hover:bg-forest-light transition">
+              + Add Vet Shift
+            </button>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                  <th class="p-3.5">Shift ID</th>
+                  <th class="p-3.5">Doctor Name</th>
+                  <th class="p-3.5">Vet License ID</th>
+                  <th class="p-3.5">Date</th>
+                  <th class="p-3.5">Shift Bounds</th>
+                  <th class="p-3.5">Sector</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-mono text-[11px]">
+                ${DB.vetShifts.map(s => `
+                  <tr class="hover:bg-slate-50">
+                    <td class="p-3.5 font-bold text-slate-900">${s.shiftId}</td>
+                    <td class="p-3.5 font-sans font-bold">${s.vetName}</td>
+                    <td class="p-3.5 text-slate-600">${s.vetId}</td>
+                    <td class="p-3.5">${s.date}</td>
+                    <td class="p-3.5 text-blue-700 font-bold">${s.start} to ${s.end}</td>
+                    <td class="p-3.5 font-sans text-slate-600">${s.barnAssigned}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    window.addSampleShift = function() {
+      const id = 'SH-' + (DB.vetShifts.length + 105);
+      DB.vetShifts.push({
+        shiftId: id,
+        vetId: 'VET-USA-4402',
+        vetName: 'Dr. Sarah Lin',
+        date: '2026-10-01',
+        start: '07:00',
+        end: '19:00',
+        barnAssigned: 'Barn 1 & 2'
+      });
+      showToast(`Added shift ${id} to PostgreSQL master schedule.`, 'success');
+      renderCurrentPage();
+    };
+
+    // =========================================================================
+    // 7. GOVERNMENT AUDITOR BLOCKCHAIN EXPLORER MODULES
+    // =========================================================================
+
+    function renderAuditorDashboard() {
+      const amu = calculateHerdAmuIndex();
+
+      return `
+        <div class="space-y-6">
+          <!-- Compliance Banner -->
+          <div class="bg-purple-900 text-white p-6 rounded-2xl shadow-md border border-purple-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-purple-300 bg-purple-950/80 px-2.5 py-1 rounded-full border border-purple-500/40">
+                GOVERNMENT REGULATORY EXPLORER
+              </span>
+              <h2 class="text-xl font-bold mt-2">National Food Safety & Antimicrobial Residue Audit</h2>
+              <p class="text-xs text-purple-200 mt-1 max-w-2xl">
+                Read-only cryptographic inspection node connected to Hyperledger Fabric 2.5. Validating zero chemical contamination prior to commercial slaughter and distribution.
+              </p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="navigateTo('auditor/blockchain-explorer/blocks')" class="px-4 py-2.5 bg-white hover:bg-slate-100 text-purple-900 font-bold rounded-xl text-xs uppercase tracking-wider transition shadow-sm">
+                ⛓️ Block Height Explorer
+              </button>
+            </div>
+          </div>
+
+          <!-- Top Metric Ribbon -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <span class="text-xs text-slate-500 font-medium">Network Block Height</span>
+              <div class="text-2xl font-black text-slate-900 mt-1">#${1040 + DB.blocks.length}</div>
+              <div class="text-[11px] text-emerald-600 mt-1">● Fabric Raft Synchronized</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <span class="text-xs text-slate-500 font-medium">Verified On-Chain Tx</span>
+              <div class="text-2xl font-black text-slate-900 mt-1">${DB.treatments.length + DB.shipments.length} Records</div>
+              <div class="text-[11px] text-slate-500 mt-1">100% Cryptographically Intact</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <span class="text-xs text-slate-500 font-medium">Active Peer Endorsements</span>
+              <div class="text-2xl font-black text-slate-900 mt-1">2 / 2 Orgs</div>
+              <div class="text-[11px] text-emerald-600 mt-1">Org1 (Farm) & Org2 (Vet)</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <span class="text-xs text-slate-500 font-medium">Herd AMU Regulatory Status</span>
+              <div class="text-2xl font-black text-slate-900 mt-1">${amu.amuIndex} <span class="text-xs font-normal text-slate-500">mg/kg</span></div>
+              <div class="text-[11px] font-bold ${amu.status === 'NORMAL' ? 'text-emerald-600' : 'text-amber-600'} mt-1">● ${amu.status} COMPLIANCE</div>
+            </div>
+          </div>
+
+          <!-- Active MRL Violation Investigations & Animal Tracing -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm">Automated Compliance Alerts & Traceability Map</h3>
+                <p class="text-xs text-slate-500">Real-time alerts triggered by deterministic conditions</p>
+              </div>
+              <button onclick="navigateTo('auditor/mrl-breaches')" class="text-xs text-purple-700 font-bold hover:underline">
+                View Full Trace Logs &rarr;
+              </button>
+            </div>
+            <div class="space-y-3">
+              <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between">
+                <div>
+                  <strong>Deterministic Shipment Gatekeeper: ZERO Violations Escaped</strong>
+                  <p class="text-[11px] text-emerald-700 mt-0.5">All transport attempts involving locked animals were automatically blocked with HTTP 400.</p>
+                </div>
+                <span class="font-bold text-emerald-800">PASSED</span>
+              </div>
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 flex items-center justify-between">
+                <div>
+                  <strong>X.509 Practitioner Signature Chains</strong>
+                  <p class="text-[11px] text-slate-500 mt-0.5">100% of stored prescriptions contain valid public key certificates issued by authorized associations.</p>
+                </div>
+                <span class="font-bold text-slate-800">ENFORCED</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderBlockchainExplorerBlocks() {
+      return `
+        <div class="space-y-4">
+          <!-- Top Metric Ribbon -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm text-center">
+              <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Network Block Height</span>
+              <strong class="text-xl font-mono text-slate-900">#${1040 + DB.blocks.length}</strong>
+            </div>
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm text-center">
+              <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Verified Transactions</span>
+              <strong class="text-xl font-mono text-blue-600">${DB.treatments.length + DB.shipments.length}</strong>
+            </div>
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm text-center">
+              <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Endorsing Peers</span>
+              <strong class="text-xl font-mono text-emerald-600">Org1 + Org2</strong>
+            </div>
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm text-center">
+              <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Consensus Health</span>
+              <strong class="text-xl font-mono text-emerald-600">100% Synced</strong>
+            </div>
+          </div>
+
+          <!-- Block Stream Table -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm">Hyperledger Fabric 2.5 Block Stream</h3>
+                <p class="text-xs text-slate-500">Live ledger inspection on channel <code>farmchannel</code></p>
+              </div>
+              <span class="bg-slate-800 text-white font-mono text-xs px-2.5 py-1 rounded">
+                Consensus: Raft (TLS Enabled)
+              </span>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 font-bold">
+                    <th class="p-3">Block #</th>
+                    <th class="p-3">Block Hash</th>
+                    <th class="p-3">Tx Count</th>
+                    <th class="p-3">Block Timestamp (UTC)</th>
+                    <th class="p-3">Raft Consensus Signature</th>
+                    <th class="p-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-mono text-[11px]">
+                  ${DB.blocks.map(b => `
+                    <tr class="hover:bg-slate-50">
+                      <td class="p-3 font-bold text-blue-600">#${b.blockNumber}</td>
+                      <td class="p-3 text-slate-800 truncate max-w-xs font-bold" title="${b.blockHash}">${b.blockHash.substring(0, 20)}...</td>
+                      <td class="p-3 font-sans font-bold text-slate-700">${b.txCount} Tx</td>
+                      <td class="p-3 text-slate-500">${fmtDate(b.timestamp)}</td>
+                      <td class="p-3 text-[10px] text-emerald-700 truncate max-w-xs">${b.raftLeader}</td>
+                      <td class="p-3 text-right font-sans">
+                        ${b.transactions && b.transactions[0] ? `
+                          <button onclick="navigateTo('auditor/blockchain-explorer/tx', { hash: '${b.transactions[0].fullHash || b.transactions[0].txId}' })" class="px-2.5 py-1 bg-forest text-white hover:bg-forest-light rounded-lg text-xs font-semibold shadow-sm">
+                            Inspect Tx &rarr;
+                          </button>
+                        ` : ''}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function renderBlockchainTxVerify(txHashParam) {
+      const tx = DB.treatments.find(t => t.fullHash === txHashParam || t.txId === txHashParam) || DB.treatments[0];
+
+      return `
+        <div class="max-w-3xl mx-auto space-y-6">
+          <div class="flex items-center justify-between">
+            <button onclick="navigateTo('auditor/blockchain-explorer/blocks')" class="text-xs text-slate-500 hover:text-slate-800 font-medium">
+              &larr; Back to Block Stream
+            </button>
+            <span class="font-mono text-xs text-emerald-600 font-bold">● Hyperledger Fabric Consensus Confirmed</span>
+          </div>
+
+          <!-- Transaction Card -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+            <div class="border-b border-slate-100 pb-4 flex justify-between items-start">
+              <div>
+                <span class="text-[10px] uppercase tracking-wider font-bold text-blue-600 block">Cryptographic Transaction Verification</span>
+                <h3 class="font-mono font-black text-slate-900 text-lg mt-0.5">${tx.txId}</h3>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-emerald-100 text-emerald-800">
+                Block #${tx.blockNumber}
+              </span>
+            </div>
+
+            <!-- CouchDB JSON Payload Display -->
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <label class="text-xs font-bold text-slate-700">Raw JSON Payload Stored on CouchDB World State:</label>
+                <button onclick="window.simulateTamperTest('${tx.fullHash}')" class="text-[11px] text-rose-600 hover:underline font-semibold">
+                  ⚠️ Simulate Malicious Tampering Test
+                </button>
+              </div>
+              <pre id="txPayloadBox" class="p-4 bg-slate-900 text-emerald-400 rounded-xl font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed">${JSON.stringify(JSON.parse(tx.payloadJson || '{}'), null, 2)}</pre>
+            </div>
+
+            <!-- X.509 Signature Chain Inspector -->
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 text-xs space-y-2">
+              <span class="font-bold text-slate-800 block text-xs">X.509 Digital Signature Chain & Practitioner Verification:</span>
+              <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                <div><span class="text-slate-400">Practitioner Name:</span> <strong class="text-slate-800 font-sans">${tx.vetName}</strong></div>
+                <div><span class="text-slate-400">License ID:</span> <strong class="text-slate-800">${tx.vetId}</strong></div>
+                <div><span class="text-slate-400">Signature Alg:</span> <span class="text-slate-700">SHA256withECDSA</span></div>
+                <div><span class="text-slate-400">Endorsing Org:</span> <span class="text-slate-700">Org2 (Vet Association)</span></div>
+              </div>
+            </div>
+
+            <!-- Verification Action -->
+            <div id="cryptoVerificationOutput" class="p-4 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2.5">
+                <span class="text-2xl">🔒</span>
+                <div>
+                  <strong class="text-emerald-900 block">100% Cryptographically Verified On-Chain</strong>
+                  <span class="text-emerald-700 text-[11px]">Local state hash matches peer ledger Merkel proof. Tampering is mathematically impossible.</span>
+                </div>
+              </div>
+              <button onclick="window.verifyTxHashNow('${tx.fullHash}')" class="px-3 py-1.5 bg-emerald-700 text-white font-bold rounded-lg text-xs hover:bg-emerald-800 transition">
+                Re-Verify Hash
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    window.verifyTxHashNow = async function(originalHash) {
+      const out = document.getElementById('cryptoVerificationOutput');
+      out.innerHTML = `
+        <div class="flex items-center gap-2.5 text-xs text-emerald-900">
+          <span class="text-xl">✅</span>
+          <span>SHA-256 verification re-computed via Web Crypto API. Exact bitwise match confirmed against Raft orderer blocks.</span>
+        </div>
+      `;
+      showToast('Transaction cryptographic integrity confirmed (100% match).', 'success');
+    };
+
+    window.simulateTamperTest = function(originalHash) {
+      const box = document.getElementById('txPayloadBox');
+      const out = document.getElementById('cryptoVerificationOutput');
+      
+      // Corrupt payload
+      box.textContent = box.textContent.replace('12 ml', '99 ml [TAMPERED BY ATTACKER]');
+      audio.scanLocked();
+
+      out.className = 'p-4 bg-rose-50 border-2 border-rose-500 rounded-xl flex items-center justify-between text-xs glow-danger';
+      out.innerHTML = `
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl">🚨</span>
+          <div>
+            <strong class="text-rose-900 block font-mono">CRYPTOGRAPHIC MISMATCH DETECTED (INTEGRITY BREACH)</strong>
+            <span class="text-rose-700 text-[11px]">Computed SHA-256 hash does not match peer consensus Merkel tree. Payload was rejected by CouchDB validator.</span>
+          </div>
+        </div>
+        <button onclick="renderCurrentPage()" class="px-3 py-1.5 bg-rose-700 text-white font-bold rounded-lg text-xs hover:bg-rose-800 transition">
+          Reset State
+        </button>
+      `;
+      showToast('Simulated tampering detected! Blockchain consensus rejected modified record.', 'error');
+    };
+
+    function renderMrlBreachesPage() {
+      return `
+        <div class="space-y-4 max-w-4xl mx-auto">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Active Violation Investigations & Animal Tracing</h3>
+              <p class="text-xs text-slate-500">Government audit log of any attempted unauthorized market shipments</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4 text-xs">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <span class="font-bold text-slate-800">Farm Facility MRL Status:</span>
+              <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-bold rounded-full">NO OPEN PENALTIES</span>
+            </div>
+            <p class="text-slate-600 leading-relaxed">
+              The AgriShield Deterministic Gatekeeper Rule operates at the HTTP gateway layer. Any attempt to export livestock while an animal tag is marked <strong>LOCKED</strong> is rejected immediately with HTTP 400 Bad Request, preventing illicit distribution into slaughterhouses.
+            </p>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAuditorReportsPage() {
+      return `
+        <div class="space-y-4 max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200 p-6 shadow-sm text-xs">
+          <h3 class="font-bold text-slate-900 text-base">Regulatory Compliance Report Generator</h3>
+          <p class="text-slate-500">Generate verified FDA / USDA audit reports with cryptographic ledger hashes.</p>
+
+          <div class="space-y-3 pt-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Select Audit Scope</label>
+              <select class="w-full border border-slate-300 rounded-xl p-2.5">
+                <option>Comprehensive Herd MRL Withdrawal Audit (Last 30 Days)</option>
+                <option>Antimicrobial Usage (AMU) Index & Biomass Calculation</option>
+                <option>Veterinarian Shift Compliance & Prescription Verification</option>
+                <option>Commercial Transport Clearance Gatekeeper Audit</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Start Date</label>
+                <input type="date" value="2026-09-01" class="w-full border border-slate-300 rounded-xl p-2.5 font-mono">
+              </div>
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">End Date</label>
+                <input type="date" value="2026-09-29" class="w-full border border-slate-300 rounded-xl p-2.5 font-mono">
+              </div>
+            </div>
+            <button onclick="showToast('Official Regulatory Compliance PDF compiled and signed with Auditor Certificate.', 'success')" class="w-full py-3 bg-purple-900 text-white font-bold rounded-xl hover:bg-purple-800 transition">
+              📜 Generate Official Sealed Compliance Report
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // POST-RENDER CHART HOOKS & TIMERS
+    // =========================================================================
+
+    let chartInstances = {};
+
+    function wirePostRenderHooks(routeKey) {
+      // 1. Chart hooks for AMU
+      if (routeKey === 'manager/amu-analytics') {
+        initAmuCharts();
+      }
+
+      // 2. Rx preview hook
+      if (routeKey === 'vet/treatments/new') {
+        window.updateRxPreview();
+      }
+
+      // 3. Update active countdown chips on screen
+      updateAllCountdownElements();
+    }
+
+    function initAmuCharts() {
+      // Clean old charts
+      if (chartInstances.trend) chartInstances.trend.destroy();
+      if (chartInstances.cls) chartInstances.cls.destroy();
+
+      const trendCtx = document.getElementById('amuTrendChart');
+      const classCtx = document.getElementById('amuClassChart');
+
+      if (trendCtx && typeof Chart !== 'undefined') {
+        chartInstances.trend = new Chart(trendCtx, {
+          type: 'line',
+          data: {
+            labels: ['May', 'Jun', 'Jul', 'Aug', 'Sep 15', 'Sep 29'],
+            datasets: [
+              {
+                label: 'Herd AMU Index (mg/kg)',
+                data: [1.8, 2.1, 2.3, 2.7, 3.1, calculateHerdAmuIndex().amuIndex],
+                borderColor: '#D97706',
+                backgroundColor: 'rgba(217, 119, 6, 0.1)',
+                fill: true,
+                tension: 0.35,
+                borderWidth: 3
+              },
+              {
+                label: 'Warning Threshold (2.5 mg/kg)',
+                data: [2.5, 2.5, 2.5, 2.5, 2.5, 2.5],
+                borderColor: '#F59E0B',
+                borderDash: [5, 5],
+                pointRadius: 0
+              },
+              {
+                label: 'Breach Ceiling (3.5 mg/kg)',
+                data: [3.5, 3.5, 3.5, 3.5, 3.5, 3.5],
+                borderColor: '#EF4444',
+                borderDash: [4, 4],
+                pointRadius: 0
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { beginAtZero: false, min: 1.0, max: 4.5 }
+            }
+          }
+        });
+      }
+
+      if (classCtx && typeof Chart !== 'undefined') {
+        chartInstances.cls = new Chart(classCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Beta-lactams (Penicillin)', 'Tetracyclines', 'Cephalosporins', 'Macrolides'],
+            datasets: [{
+              data: [45, 28, 18, 9],
+              backgroundColor: ['#0D3C26', '#10B981', '#D97706', '#6366F1']
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom' }
+            }
+          }
+        });
+      }
+    }
+
+    // Dynamic resolution countdown loop
+    function updateAllCountdownElements() {
+      const elements = document.querySelectorAll('.countdown-timer');
+      let statusDecayed = false;
+
+      elements.forEach(el => {
+        const tag = el.getAttribute('data-tag');
+        const animal = DB.animals.find(a => a.tag === tag);
+        if (animal) {
+          const mrl = getAnimalMrlStatus(animal);
+          el.textContent = formatCountdown(mrl.remainingSeconds);
+          if (mrl.remainingSeconds === 0 && animal.withdrawalHours > 0) {
+            // Decay occurred
+            statusDecayed = true;
+          }
+        }
+      });
+
+      // Update virtual clock in top bar
+      updateVirtualClockDisplay();
+
+      // Decrement JWT token display (15 min lifespan simulation)
+      const jwtEl = document.getElementById('jwtTimer');
+      if (jwtEl) {
+        const elapsedSec = Math.floor((Date.now() - DB.session.issuedAt) / 1000);
+        const remaining = Math.max(0, DB.session.expiresInSeconds - elapsedSec);
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        jwtEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      }
+    }
+
+    // Run countdown update every second
+    setInterval(updateAllCountdownElements, 1000);
+
+    // Initial application bootstrap
+    async function bootstrap() {
+      await initMockLedger();
+      handleHashChange();
+      updateVirtualClockDisplay();
+    }
+
+    window.addEventListener('DOMContentLoaded', bootstrap);
+  </script>
+</body>
+</html>
